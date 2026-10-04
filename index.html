@@ -245,6 +245,7 @@ $('nav').onclick = e => { const b = e.target.closest('button'); if (!b) return; 
 function prep() {
   D.SKU = objs(D.sku); D.LIST = objs(D.list); D.TRANG = objs(D.trang); D.BT = objs(D.bt);
   D.CAN_MA = objs(D.canMa); D.CHO = objs(D.cho); D.MOTA = objs(D.mota); D.CH = objs(D.cauHoi);
+  D.MT = {}; objs(D.moTaWeb).forEach(m => D.MT[m['URL (handle)']] = m);
   D.SKU.forEach(s => s._k = flat(s['SKU chuẩn'] + ' ' + s['Gồm mã cũ']));
   D.LIST.forEach(l => l._k = norm(l['Tên listing'] + ' ' + l['SKU chuẩn'] + ' ' + l['Mã listing'] + ' ' + l['Shop']));
   D.TRANG.forEach(p => p._k = norm(p['Tên trang'] + ' ' + p['Hãng xe'] + ' ' + p['Dòng xe'] + ' ' + p['SKU'] + ' ' + p['URL (handle)']));
@@ -307,6 +308,7 @@ function vTongQuan() {
     <div class="card"><h2>Web Xfilter.vn (đề xuất, chưa đăng)</h2>
       <div class="row">${Object.keys(loai).map(k => `<span class="tag info">${esc(k)}: ${loai[k]}</span>`).join('')}
       <span class="tag ok">Sẵn sàng: ${ready}</span><span class="tag warn">Cần duyệt: ${P.length - ready}</span>
+      <span class="tag ok">Có mô tả: ${Object.keys(D.MT).length}/${P.length}</span>
       <span class="tag warn">Phân loại cần mã: ${D.CAN_MA.length}</span><span class="tag warn">Phân loại chờ duyệt: ${D.CHO.length}</span></div>
     </div>
     <div class="card"><h2>Việc chờ duyệt</h2>
@@ -366,7 +368,7 @@ function listItem(l) {
 }
 function pageItem(p) {
   return `<div class="item" data-page="${esc(p['URL (handle)'])}">
-    <div class="t">${esc(p['Tên trang'])} ${statusTag(p['Trạng thái'])}</div>
+    <div class="t">${esc(p['Tên trang'])} ${statusTag(p['Trạng thái'])} ${D.MT[p['URL (handle)']] ? '<span class="tag info">Có mô tả</span>' : ''}</div>
     <div class="muted">${esc(p['Dòng hàng'])} · ${esc(p['Số biến thể'])} biến thể · SKU: <span class="sku">${esc(p['SKU'])}</span> · ${esc(p['Giá thấp nhất'])}–${esc(p['Giá cao nhất'])}${p['Cần duyệt'] ? ' · <b>' + esc(p['Cần duyệt']) + '</b>' : ''}</div></div>`;
 }
 function bindItems(root) {
@@ -448,6 +450,7 @@ function openPage(handle) {
   if (!p) return;
   const bt = D.BT.filter(b => b['Tên trang'] === p['Tên trang']);
   const mt = D.MOTA.find(m => m['URL (handle)'] === handle);
+  const mw = D.MT[handle];
   const src = ids(p['Shopee nguồn']);
   openPanel(p['Tên trang'], `
     <div class="card"><div>${statusTag(p['Trạng thái'])} <span class="muted">${esc(p['Dòng hàng'])} · ${esc(p['Hãng xe'])} ${esc(p['Dòng xe'])}</span></div>
@@ -458,13 +461,35 @@ function openPage(handle) {
       <tr><th>Đời xe</th><th>Bản lọc / động cơ</th><th>SKU</th><th class="num">Giá</th></tr>
       ${bt.map(b => `<tr><td>${esc(b['Đời xe'])}</td><td>${esc(b['Bản lọc / Động cơ'])}</td><td><span class="sku" data-sku="${esc(b['SKU'])}" style="cursor:pointer">${esc(b['SKU'])}</span>${b['Cần duyệt'] ? '<div><span class="tag warn">' + esc(b['Cần duyệt']) + '</span></div>' : ''}</td><td class="num">${esc(b['Giá'])}</td></tr>`).join('')}
     </table></div></div>
-    ${mt ? `<div class="card"><h2>Mô tả thử + SEO</h2>
+    ${mw ? `<div class="card"><h2>Mô tả + SEO ${mw['Kiểm tra'] === 'Đạt' ? '<span class="tag ok">Kiểm tra đạt</span>' : '<span class="tag bad">' + esc(mw['Kiểm tra']) + '</span>'}</h2>
+      <div class="muted">SEO title (${esc(mw['Ký tự title'])} ký tự)</div><div style="margin-bottom:8px">${esc(mw['SEO title'])}</div>
+      <div class="muted">SEO description (${esc(mw['Ký tự description'])} ký tự)</div><div class="ws" style="margin-bottom:10px">${esc(mw['SEO description'])}</div>
+      <div class="muted">Mô tả hiển thị trên web</div>
+      <div id="mtBox" style="border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff"><div class="loading">Đang tải mô tả…</div></div></div>`
+    : mt ? `<div class="card"><h2>Mô tả thử + SEO</h2>
       <div class="muted">SEO title (${String(mt['SEO title'] || '').length} ký tự)</div><div style="margin-bottom:8px">${esc(mt['SEO title'])}</div>
       <div class="muted">SEO description (${String(mt['SEO description'] || '').length} ký tự)</div><div class="ws">${esc(mt['SEO description'])}</div>
       <div class="muted" style="margin-top:8px">Mô tả đầy đủ nằm ở file trên máy: ${esc(mt['File mô tả đầy đủ (trên máy)'])}</div></div>` : ''}
     <div class="muted">Đây là bản đề xuất, chưa đăng lên web Xfilter.vn.</div>`);
   $('pB').querySelectorAll('[data-list]').forEach(el => el.onclick = e => { e.preventDefault(); openListing(el.dataset.list); });
   $('pB').querySelectorAll('[data-sku]').forEach(el => el.onclick = () => openSku(el.dataset.sku));
+  if (mw) showMoTa(handle);
+}
+// Hiện HTML mô tả trong khung cách ly (sandbox: không chạy script)
+async function showMoTa(handle) {
+  try {
+    const m = await call('moTa', TOKEN, handle);
+    const box = $('mtBox'); if (!box) return;
+    if (!m) { box.innerHTML = '<div class="muted" style="padding:10px">Chưa có mô tả.</div>'; return; }
+    const css = 'body{font:15px/1.5 system-ui,-apple-system,sans-serif;color:#1b2430;margin:12px}table{border-collapse:collapse;margin:8px 0}' +
+      'th,td{border:1px solid #dde3ea;padding:5px 8px;text-align:left}h3{font-size:16px;margin:14px 0 4px}ul{margin:4px 0;padding-left:20px}';
+    const f = document.createElement('iframe');
+    f.setAttribute('sandbox', 'allow-same-origin');
+    f.style.cssText = 'width:100%;border:0;display:block;min-height:200px';
+    f.srcdoc = '<!doctype html><meta charset="utf-8"><style>' + css + '</style>' + m['Mô tả (HTML)'];
+    f.onload = () => { try { f.style.height = (f.contentDocument.documentElement.scrollHeight + 10) + 'px'; } catch (e) { f.style.height = '600px'; } };
+    box.innerHTML = ''; box.appendChild(f);
+  } catch (e) { const box = $('mtBox'); if (box) box.innerHTML = '<div class="err" style="padding:10px">' + esc(e.message) + '</div>'; }
 }
 
 /* ============ Web Xfilter.vn (nền Haravan) ============ */
