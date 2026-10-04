@@ -457,6 +457,7 @@ function openPage(handle) {
       <div class="muted" style="margin-top:4px">URL dự kiến: /products/${esc(handle)}</div>
       ${p['Cần duyệt'] ? '<div style="margin-top:6px"><span class="tag warn">' + esc(p['Cần duyệt']) + '</span></div>' : ''}
       <div style="margin-top:6px" class="muted">Listing Shopee nguồn (${esc(xfShop())}): ${src.map(i => `<a href="${shopUrl(xfShop(), i)}" target="_blank" rel="noopener">${i} ↗</a> <a href="#" data-list="${i}">xem</a>`).join(' · ') || '—'}</div></div>
+    ${p['Thương hiệu'] !== undefined ? haravanCard(p, bt, mw) : ''}
     <div class="card"><h2>Biến thể (${bt.length})</h2><div class="scroll"><table>
       <tr><th>Đời xe</th><th>Bản lọc / động cơ</th><th>SKU</th><th class="num">Giá</th></tr>
       ${bt.map(b => `<tr><td>${esc(b['Đời xe'])}</td><td>${esc(b['Bản lọc / Động cơ'])}</td><td><span class="sku" data-sku="${esc(b['SKU'])}" style="cursor:pointer">${esc(b['SKU'])}</span>${b['Cần duyệt'] ? '<div><span class="tag warn">' + esc(b['Cần duyệt']) + '</span></div>' : ''}</td><td class="num">${esc(b['Giá'])}</td></tr>`).join('')}
@@ -474,6 +475,28 @@ function openPage(handle) {
   $('pB').querySelectorAll('[data-list]').forEach(el => el.onclick = e => { e.preventDefault(); openListing(el.dataset.list); });
   $('pB').querySelectorAll('[data-sku]').forEach(el => el.onclick = () => openSku(el.dataset.sku));
   if (mw) showMoTa(handle);
+}
+// Các trường trên form sản phẩm Haravan (WEB_TRANG cột P→U, WEB_BIEN_THE cột H→L)
+function haravanCard(p, bt, mw) {
+  const uniq = k => [...new Set(bt.map(b => String(b[k] == null ? '' : b[k])))];
+  const one = k => { const u = uniq(k); return u.length === 1 ? (u[0] || '(trống)') : u.map(x => x || '(trống)').join(' / '); };
+  const row = (k, v) => `<tr><th style="width:38%">${esc(k)}</th><td>${v}</td></tr>`;
+  const seoT = p['SEO title'] || (mw && mw['SEO title']) || '', seoD = p['SEO description'] || (mw && mw['SEO description']) || '';
+  return `<div class="card"><h2>Trên Haravan (form sản phẩm)</h2><div class="scroll"><table>
+    ${row('Thương hiệu', esc(p['Thương hiệu']))}
+    ${row('Loại', esc(p['Loại']))}
+    ${row('Hiển thị', esc(p['Hiển thị']))}
+    ${row('Giá bán', 'theo từng biến thể (bảng dưới)')}
+    ${row('Giá so sánh', esc(one('Giá so sánh')))}
+    ${row('Có quản lý tồn kho', esc(one('Quản lý tồn kho')))}
+    ${row('SKU', 'theo từng biến thể (bảng dưới)')}
+    ${row('Barcode', esc(one('Barcode')))}
+    ${row('Cho phép giao hàng', esc(one('Giao hàng')))}
+    ${row('Khối lượng', esc(one('Khối lượng (g)')) + ' g')}
+    ${row('SEO – Tiêu đề trang', esc(seoT) + ` <span class="muted">(${seoT.length}/70)</span>`)}
+    ${row('SEO – Mô tả trang', esc(seoD) + ` <span class="muted">(${seoD.length}/320)</span>`)}
+    ${row('Đường dẫn', p['Đường dẫn'] ? `<span class="muted">${esc(p['Đường dẫn'])}</span>` : '')}
+  </table></div><div class="muted" style="margin-top:6px">Mô tả sản phẩm: xem thẻ "Mô tả + SEO" bên dưới. Trang chưa đăng nên đường dẫn chưa mở được.</div></div>`;
 }
 // Hiện HTML mô tả trong khung cách ly (sandbox: không chạy script)
 async function showMoTa(handle) {
