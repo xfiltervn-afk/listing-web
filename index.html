@@ -412,12 +412,30 @@ async function openSku(sku) {
       ${s['Cần kiểm tra'] ? '<div style="margin-top:6px"><span class="tag warn">' + esc(s['Cần kiểm tra']) + '</span></div>' : ''}
       <div class="row" style="margin-top:8px">${shopCols.filter(k => s[k]).map(k => `<span class="tag info">${esc(k.replace('Listing ở ', ''))}: ${esc(s[k])}</span>`).join('')}
       <span class="tag info">Giá ${fmt(s['Giá thấp nhất'])}–${fmt(s['Giá cao nhất'])}</span></div></div>
+    <div class="card"><h2>Thông số SKU (file SKU gốc)</h2><div id="skuGoc"><div class="loading">Đang đọc…</div></div></div>
     <div class="card"><h2>Đang bán ở listing nào</h2><div id="skuPl"><div class="loading">Đang đọc phân loại…</div></div></div>
     <div class="card"><h2>Trên web dự kiến (${webBt.length} biến thể)</h2>
       ${webBt.length ? `<div class="scroll"><table><tr><th>Trang</th><th>Đời xe</th><th>Bản lọc / động cơ</th><th class="num">Giá</th></tr>
       ${webBt.map(b => { const p = D.TRANG.find(x => x['Tên trang'] === b['Tên trang']); return `<tr><td><div class="item" style="padding:0;border:0" data-page="${esc(p ? p['URL (handle)'] : '')}">${esc(b['Tên trang'])}</div> ${statusTag(b['Trạng thái trang'])}</td><td>${esc(b['Đời xe'])}</td><td>${esc(b['Bản lọc / Động cơ'])}</td><td class="num">${esc(b['Giá'])}</td></tr>`; }).join('')}</table></div>`
       : '<div class="muted">SKU này chưa có trong danh sách web.</div>'}</div>`);
   bindItems($('pB'));
+  call('thongTinSku', TOKEN, sku).then(g => {
+    const box = $('skuGoc'); if (!box) return;
+    if (!g) { box.innerHTML = '<div class="muted">SKU này chưa có trong file SKU gốc.</div>'; return; }
+    const row = (k, v) => v ? `<tr><th style="width:34%">${esc(k)}</th><td>${v}</td></tr>` : '';
+    const codes = String(g['Mã listing web'] || '').split(',').map(x => x.trim()).filter(Boolean);
+    box.innerHTML = `<div class="scroll"><table>
+      ${row('SKU gốc', '<span class="sku">' + esc(g['SKU chuẩn']) + '</span> · ' + esc(g['Loại']))}
+      ${row('Kích thước', esc(g['Kích thước']) + (g['Kích thước khác (cần kiểm)'] ? ' <span class="tag warn">khác: ' + esc(g['Kích thước khác (cần kiểm)']) + '</span>' : ''))}
+      ${row('Mã OEM / mã hãng xe', '<span class="ws">' + esc(String(g['Mã OEM / mã hãng xe'] || '').replace(/ \| /g, '\n')) + '</span>')}
+      ${row('Xe phù hợp (file SKU)', esc(g['Xe phù hợp (theo file SKU)']))}
+      ${row('Mã Xfilter', esc(g['Mã Xfilter']))}
+      ${row('Trang web', codes.map(c => { const p = D.TRANG.find(x => x['Mã listing'] === c); return p ? `<a href="#" data-page="${esc(p['URL (handle)'])}">${esc(c)}</a>` : esc(c); }).join(', '))}
+      ${row('Shopee', esc(g['Bản trên Shopee']) + (g['Số listing Shopee'] ? ' · ' + esc(g['Số listing Shopee']) + ' listing · ' + esc(g['Shop đang bán']) : ''))}
+      ${row('Ghi chú', esc(g['Ghi chú']))}
+    </table></div>`;
+    box.querySelectorAll('[data-page]').forEach(el => el.onclick = e => { e.preventDefault(); openPage(el.dataset.page); });
+  }).catch(e => { const box = $('skuGoc'); if (box) box.innerHTML = '<div class="err">' + esc(e.message) + '</div>'; });
   try {
     const rows = objs(await call('phanLoaiTheoSku', TOKEN, sku));
     const g = {}; rows.forEach(r => (g[r['Mã listing']] = g[r['Mã listing']] || []).push(r));
