@@ -248,7 +248,7 @@ function prep() {
   D.MT = {}; objs(D.moTaWeb).forEach(m => D.MT[m['URL (handle)']] = m);
   D.SKU.forEach(s => s._k = flat(s['SKU chuẩn'] + ' ' + s['Gồm mã cũ']));
   D.LIST.forEach(l => l._k = norm(l['Tên listing'] + ' ' + l['SKU chuẩn'] + ' ' + l['Mã listing'] + ' ' + l['Shop']));
-  D.TRANG.forEach(p => p._k = norm(p['Tên trang'] + ' ' + p['Hãng xe'] + ' ' + p['Dòng xe'] + ' ' + p['SKU'] + ' ' + p['URL (handle)']));
+  D.TRANG.forEach(p => p._k = norm(p['Tên trang'] + ' ' + p['Hãng xe'] + ' ' + p['Dòng xe'] + ' ' + p['SKU'] + ' ' + p['URL (handle)'] + ' ' + (p['Mã listing'] || '')));
   D.shops = [...new Set(D.LIST.map(l => l['Shop']).filter(Boolean))];
 }
 function shopUrl(shop, id) { const s = D.shopIds[shop]; return s && id ? 'https://shopee.vn/product/' + s + '/' + id : ''; }
@@ -368,7 +368,7 @@ function listItem(l) {
 }
 function pageItem(p) {
   return `<div class="item" data-page="${esc(p['URL (handle)'])}">
-    <div class="t">${esc(p['Tên trang'])} ${statusTag(p['Trạng thái'])} ${D.MT[p['URL (handle)']] ? '<span class="tag info">Có mô tả</span>' : ''}</div>
+    <div class="t">${p['Mã listing'] ? '<span class="sku" style="color:var(--brand-2)">' + esc(p['Mã listing']) + '</span> ' : ''}${esc(p['Tên trang'])} ${statusTag(p['Trạng thái'])} ${D.MT[p['URL (handle)']] ? '<span class="tag info">Có mô tả</span>' : ''}</div>
     <div class="muted">${esc(p['Dòng hàng'])} · ${esc(p['Số biến thể'])} biến thể · SKU: <span class="sku">${esc(p['SKU'])}</span> · ${esc(p['Giá thấp nhất'])}–${esc(p['Giá cao nhất'])}${p['Cần duyệt'] ? ' · <b>' + esc(p['Cần duyệt']) + '</b>' : ''}</div></div>`;
 }
 function bindItems(root) {
@@ -452,7 +452,7 @@ function openPage(handle) {
   const mt = D.MOTA.find(m => m['URL (handle)'] === handle);
   const mw = D.MT[handle];
   const src = ids(p['Shopee nguồn']);
-  openPanel(p['Tên trang'], `
+  openPanel((p['Mã listing'] ? p['Mã listing'] + ' · ' : '') + p['Tên trang'], `
     <div class="card"><div>${statusTag(p['Trạng thái'])} <span class="muted">${esc(p['Dòng hàng'])} · ${esc(p['Hãng xe'])} ${esc(p['Dòng xe'])}</span></div>
       <div class="muted" style="margin-top:4px">URL dự kiến: /products/${esc(handle)}</div>
       ${p['Cần duyệt'] ? '<div style="margin-top:6px"><span class="tag warn">' + esc(p['Cần duyệt']) + '</span></div>' : ''}
@@ -523,7 +523,7 @@ function vWeb() {
   const sts = [...new Set(D.TRANG.map(p => p['Trạng thái']).filter(Boolean))];
   $('main').innerHTML = `
     <div class="card">
-      <div class="row"><input id="wq" class="search" type="search" placeholder="Tìm hãng / dòng xe / SKU" value="${esc(WB.q)}"></div>
+      <div class="row"><input id="wq" class="search" type="search" placeholder="Tìm mã listing (DH0042) / hãng / dòng xe / SKU" value="${esc(WB.q)}"></div>
       <div style="margin-top:8px"><span class="chip ${WB.st ? '' : 'on'}" data-st="">Mọi trạng thái</span>${sts.map(s => `<span class="chip ${WB.st === s ? 'on' : ''}" data-st="${esc(s)}">${esc(s)}</span>`).join('')}</div>
       <div><span class="chip ${WB.loai ? '' : 'on'}" data-loai="">Mọi dòng hàng</span>${loais.map(s => `<span class="chip ${WB.loai === s ? 'on' : ''}" data-loai="${esc(s)}">${esc(s)}</span>`).join('')}</div>
       <div class="muted" style="margin-top:6px">Bản đề xuất từ shop xfilter (1 trang = 1 dòng xe). Chưa đăng lên web Xfilter.vn.</div>
