@@ -147,7 +147,7 @@
     <nav id="nav">
       <button data-v="tq" class="on">Tổng quan</button>
       <button data-v="tc">Tra cứu</button>
-      <button data-v="web">Web Haravan</button>
+      <button data-v="web">Web Xfilter.vn</button>
       <button data-v="cho">Chờ anh <span class="badge hidden" id="choBadge"></span></button>
     </nav>
   </header>
@@ -304,14 +304,14 @@ function vTongQuan() {
       <tr><th>Shop</th><th class="num">Listing</th><th class="num">Phân loại</th><th class="num hide-m">Tổng tồn</th><th class="num">Chưa rà</th></tr>
       ${byShop.map(r => `<tr><td>${esc(r.s)}</td><td class="num">${fmt(r.n)}</td><td class="num">${fmt(r.pl)}</td><td class="num hide-m">${fmt(r.ton)}</td><td class="num">${fmt(r.chua)}</td></tr>`).join('')}
     </table></div></div>
-    <div class="card"><h2>Web Haravan (đề xuất, chưa đăng)</h2>
+    <div class="card"><h2>Web Xfilter.vn (đề xuất, chưa đăng)</h2>
       <div class="row">${Object.keys(loai).map(k => `<span class="tag info">${esc(k)}: ${loai[k]}</span>`).join('')}
       <span class="tag ok">Sẵn sàng: ${ready}</span><span class="tag warn">Cần duyệt: ${P.length - ready}</span>
       <span class="tag warn">Phân loại cần mã: ${D.CAN_MA.length}</span><span class="tag warn">Chờ anh duyệt: ${D.CHO.length}</span></div>
     </div>
     <div class="card"><h2>Việc chờ anh</h2>
       <div>Câu hỏi chưa trả lời: <b>${p.ch}</b> · Phân loại chờ duyệt: <b>${p.cho}</b> · Phân loại cần mã: <b>${p.ma}</b></div>
-      <div class="muted" style="margin-top:6px">Quyết định lưu ở tab QUYET_DINH của Sheet. Claude đọc lại khi dựng đợt sau; app không tự đổi Shopee/Haravan.</div>
+      <div class="muted" style="margin-top:6px">Quyết định lưu ở tab QUYET_DINH của Sheet. Claude đọc lại khi dựng đợt sau; app không tự đổi Shopee hay web Xfilter.vn.</div>
     </div>
     <div class="muted">Đọc từ Sheet lúc ${esc(D.luc)}. Dữ liệu Shopee là bản xuất đã nhập vào Sheet; muốn số mới thì xuất lại rồi nhập đè tab.</div>`;
   document.querySelectorAll('[data-go]').forEach(el => el.onclick = () => { VIEW = el.dataset.go; render(); });
@@ -462,12 +462,12 @@ function openPage(handle) {
       <div class="muted">SEO title (${String(mt['SEO title'] || '').length} ký tự)</div><div style="margin-bottom:8px">${esc(mt['SEO title'])}</div>
       <div class="muted">SEO description (${String(mt['SEO description'] || '').length} ký tự)</div><div class="ws">${esc(mt['SEO description'])}</div>
       <div class="muted" style="margin-top:8px">Mô tả đầy đủ nằm ở file trên máy: ${esc(mt['File mô tả đầy đủ (trên máy)'])}</div></div>` : ''}
-    <div class="muted">Đây là bản đề xuất, chưa đăng lên Haravan.</div>`);
+    <div class="muted">Đây là bản đề xuất, chưa đăng lên web Xfilter.vn.</div>`);
   $('pB').querySelectorAll('[data-list]').forEach(el => el.onclick = e => { e.preventDefault(); openListing(el.dataset.list); });
   $('pB').querySelectorAll('[data-sku]').forEach(el => el.onclick = () => openSku(el.dataset.sku));
 }
 
-/* ============ Web Haravan ============ */
+/* ============ Web Xfilter.vn (nền Haravan) ============ */
 let WB = { st: '', loai: '', q: '' };
 function vWeb() {
   const loais = [...new Set(D.TRANG.map(p => p['Dòng hàng']).filter(Boolean))];
@@ -477,7 +477,7 @@ function vWeb() {
       <div class="row"><input id="wq" class="search" type="search" placeholder="Tìm hãng / dòng xe / SKU" value="${esc(WB.q)}"></div>
       <div style="margin-top:8px"><span class="chip ${WB.st ? '' : 'on'}" data-st="">Mọi trạng thái</span>${sts.map(s => `<span class="chip ${WB.st === s ? 'on' : ''}" data-st="${esc(s)}">${esc(s)}</span>`).join('')}</div>
       <div><span class="chip ${WB.loai ? '' : 'on'}" data-loai="">Mọi dòng hàng</span>${loais.map(s => `<span class="chip ${WB.loai === s ? 'on' : ''}" data-loai="${esc(s)}">${esc(s)}</span>`).join('')}</div>
-      <div class="muted" style="margin-top:6px">Bản đề xuất từ shop xfilter (1 trang = 1 dòng xe). Chưa đăng lên Haravan.</div>
+      <div class="muted" style="margin-top:6px">Bản đề xuất từ shop xfilter (1 trang = 1 dòng xe). Chưa đăng lên web Xfilter.vn.</div>
     </div>
     <div class="card" id="wres"></div>`;
   const draw = () => {
@@ -504,7 +504,7 @@ function vCho() {
     <div class="card"><div class="row">
       <span class="chip ${CHO.chiChua ? 'on' : ''}" id="fChua">Chưa quyết (${p.all})</span><span class="chip ${CHO.chiChua ? '' : 'on'}" id="fAll">Tất cả</span>
       <span class="sp" style="flex:1"></span><button class="btn ghost" id="addQ">+ Thêm câu hỏi / việc</button></div>
-      <div class="muted" style="margin-top:6px">Bấm lưu là ghi vào tab QUYET_DINH (có giờ, sửa lại được). Claude đọc khi làm đợt sau. Không tự đổi Shopee/Haravan.</div></div>
+      <div class="muted" style="margin-top:6px">Bấm lưu là ghi vào tab QUYET_DINH (có giờ, sửa lại được). Claude đọc khi làm đợt sau. Không tự đổi Shopee hay web Xfilter.vn.</div></div>
     <div class="card"><h2>Câu hỏi (${p.ch} chưa trả lời)</h2>
       ${Object.keys(nhom).length ? Object.keys(nhom).map(k => `<h3 style="margin-top:6px">${esc(k)}</h3>` + nhom[k].map(qCard).join('')).join('') : '<div class="muted">Không còn câu nào.</div>'}</div>
     <div class="card"><h2>Phân loại chờ anh duyệt (${p.cho} chưa quyết)</h2>
