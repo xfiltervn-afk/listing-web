@@ -486,6 +486,7 @@ function haravanCard(p, bt, mw) {
     ${row('Thương hiệu', esc(p['Thương hiệu']))}
     ${row('Loại', esc(p['Loại']))}
     ${row('Hiển thị', esc(p['Hiển thị']))}
+    ${p['Cách đăng'] ? row('Cách đăng', p['Cách đăng'] === 'Tạo mới' ? 'Tạo mới' : '<b>Sửa đổi trang cũ</b> (mã ' + esc(p['Mã sản phẩm Haravan']) + ', giữ URL)') : ''}
     ${row('Giá bán', 'theo từng biến thể (bảng dưới)')}
     ${row('Giá so sánh', esc(one('Giá so sánh')))}
     ${row('Có quản lý tồn kho', esc(one('Quản lý tồn kho')))}
