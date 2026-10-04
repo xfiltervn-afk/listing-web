@@ -147,6 +147,7 @@
     <nav id="nav">
       <button data-v="tq" class="on">Tổng quan</button>
       <button data-v="tc">Tra cứu</button>
+      <button data-v="sp">Shopee</button>
       <button data-v="web">Web Xfilter.vn</button>
       <button data-v="cho">Chờ duyệt <span class="badge hidden" id="choBadge"></span></button>
     </nav>
@@ -276,7 +277,7 @@ function render() {
   document.querySelectorAll('#nav button').forEach(b => b.classList.toggle('on', b.dataset.v === VIEW));
   const p = pending(); const bd = $('choBadge');
   bd.textContent = p.all; bd.classList.toggle('hidden', !p.all);
-  ({ tq: vTongQuan, tc: vTraCuu, web: vWeb, cho: vCho })[VIEW]();
+  ({ tq: vTongQuan, tc: vTraCuu, sp: vShopee, web: vWeb, cho: vCho })[VIEW]();
   window.scrollTo(0, 0);
 }
 
@@ -303,7 +304,7 @@ function vTongQuan() {
     </div>
     <div class="card"><h2>Theo shop Shopee</h2><div class="scroll"><table>
       <tr><th>Shop</th><th class="num">Listing</th><th class="num">Phân loại</th><th class="num hide-m">Tổng tồn</th><th class="num">Chưa rà</th></tr>
-      ${byShop.map(r => `<tr><td>${esc(r.s)}</td><td class="num">${fmt(r.n)}</td><td class="num">${fmt(r.pl)}</td><td class="num hide-m">${fmt(r.ton)}</td><td class="num">${fmt(r.chua)}</td></tr>`).join('')}
+      ${byShop.map(r => `<tr><td><a href="#" data-goshop="${esc(r.s)}">${esc(r.s)}</a></td><td class="num">${fmt(r.n)}</td><td class="num">${fmt(r.pl)}</td><td class="num hide-m">${fmt(r.ton)}</td><td class="num">${fmt(r.chua)}</td></tr>`).join('')}
     </table></div></div>
     <div class="card"><h2>Web Xfilter.vn (đề xuất, chưa đăng)</h2>
       <div class="row">${Object.keys(loai).map(k => `<span class="tag info">${esc(k)}: ${loai[k]}</span>`).join('')}
@@ -317,6 +318,7 @@ function vTongQuan() {
     </div>
     <div class="muted">Đọc từ Sheet lúc ${esc(D.luc)}. Dữ liệu Shopee là bản xuất đã nhập vào Sheet; muốn số mới thì xuất lại rồi nhập đè tab.</div>`;
   document.querySelectorAll('[data-go]').forEach(el => el.onclick = () => { VIEW = el.dataset.go; render(); });
+  document.querySelectorAll('[data-goshop]').forEach(el => el.onclick = e => { e.preventDefault(); SP.shop = el.dataset.goshop; SP.n = 100; VIEW = 'sp'; render(); });
 }
 
 /* ============ Tra cứu ============ */
@@ -532,6 +534,33 @@ async function showMoTa(handle) {
     f.onload = () => { try { f.style.height = (f.contentDocument.documentElement.scrollHeight + 10) + 'px'; } catch (e) { f.style.height = '600px'; } };
     box.innerHTML = ''; box.appendChild(f);
   } catch (e) { const box = $('mtBox'); if (box) box.innerHTML = '<div class="err" style="padding:10px">' + esc(e.message) + '</div>'; }
+}
+
+/* ============ Shopee: lướt listing theo shop ============ */
+let SP = { shop: '', dong: '', q: '', n: 100 };
+function vShopee() {
+  const dongs = [...new Set(D.LIST.map(l => l['Dòng hàng']).filter(Boolean))];
+  const cnt = s => D.LIST.filter(l => l['Shop'] === s).length;
+  $('main').innerHTML = `
+    <div class="card">
+      <div class="row"><input id="spq" class="search" type="search" placeholder="Lọc trong danh sách: tên listing, SKU, mã listing" value="${esc(SP.q)}"></div>
+      <div style="margin-top:8px"><span class="chip ${SP.shop ? '' : 'on'}" data-spshop="">Tất cả shop (${D.LIST.length})</span>${D.shops.map(s => `<span class="chip ${SP.shop === s ? 'on' : ''}" data-spshop="${esc(s)}">${esc(s)} (${cnt(s)})</span>`).join('')}</div>
+      <div><span class="chip ${SP.dong ? '' : 'on'}" data-spdong="">Mọi dòng hàng</span>${dongs.map(s => `<span class="chip ${SP.dong === s ? 'on' : ''}" data-spdong="${esc(s)}">${esc(s)}</span>`).join('')}</div>
+      <div class="muted" style="margin-top:6px">Dữ liệu Shopee là bản xuất đã nạp vào Sheet (27–28/09/2026). Bấm một listing để xem phân loại, SKU, link Shopee và link sửa.</div>
+    </div>
+    <div class="card" id="spres"></div>`;
+  const draw = () => {
+    const words = norm(SP.q).split(' ').filter(Boolean);
+    const rows = D.LIST.filter(l => (!SP.shop || l['Shop'] === SP.shop) && (!SP.dong || l['Dòng hàng'] === SP.dong) && words.every(w => l._k.indexOf(w) >= 0));
+    $('spres').innerHTML = `<h2>${rows.length} listing</h2>` + (rows.length ? rows.slice(0, SP.n).map(listItem).join('') : '<div class="muted">Không có listing khớp.</div>') +
+      (rows.length > SP.n ? `<div style="margin-top:10px"><button class="btn ghost" id="spMore">Xem thêm (${rows.length - SP.n} listing)</button></div>` : '');
+    bindItems($('spres'));
+    const m = $('spMore'); if (m) m.onclick = () => { SP.n += 200; draw(); };
+  };
+  $('spq').oninput = () => { SP.q = $('spq').value; SP.n = 100; clearTimeout(vShopee.h); vShopee.h = setTimeout(draw, 150); };
+  document.querySelectorAll('[data-spshop]').forEach(c => c.onclick = () => { SP.shop = c.dataset.spshop; SP.n = 100; vShopee(); });
+  document.querySelectorAll('[data-spdong]').forEach(c => c.onclick = () => { SP.dong = c.dataset.spdong; SP.n = 100; vShopee(); });
+  draw();
 }
 
 /* ============ Web Xfilter.vn (nền Haravan) ============ */
