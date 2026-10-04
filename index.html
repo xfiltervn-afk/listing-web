@@ -148,7 +148,7 @@
       <button data-v="tq" class="on">Tổng quan</button>
       <button data-v="tc">Tra cứu</button>
       <button data-v="web">Web Xfilter.vn</button>
-      <button data-v="cho">Chờ anh <span class="badge hidden" id="choBadge"></span></button>
+      <button data-v="cho">Chờ duyệt <span class="badge hidden" id="choBadge"></span></button>
     </nav>
   </header>
   <main id="main"><div class="loading">Đang đọc dữ liệu từ Sheet…</div></main>
@@ -298,7 +298,7 @@ function vTongQuan() {
       <div class="stat click" data-go="tc"><div class="n">${fmt(D.SKU.length)}</div><div class="l">SKU chuẩn · ${fmt(skuCheck)} cần kiểm tra</div></div>
       <div class="stat click" data-go="web"><div class="n">${fmt(P.length)}</div><div class="l">Trang web dự kiến · ${fmt(ready)} sẵn sàng</div></div>
       <div class="stat"><div class="n">${fmt(D.BT.length)}</div><div class="l">Biến thể web</div></div>
-      <div class="stat click" data-go="cho" style="${p.all ? 'border-color:#f2b632' : ''}"><div class="n">${fmt(p.all)}</div><div class="l">Việc chờ anh quyết</div></div>
+      <div class="stat click" data-go="cho" style="${p.all ? 'border-color:#f2b632' : ''}"><div class="n">${fmt(p.all)}</div><div class="l">Việc chờ duyệt</div></div>
     </div>
     <div class="card"><h2>Theo shop Shopee</h2><div class="scroll"><table>
       <tr><th>Shop</th><th class="num">Listing</th><th class="num">Phân loại</th><th class="num hide-m">Tổng tồn</th><th class="num">Chưa rà</th></tr>
@@ -307,9 +307,9 @@ function vTongQuan() {
     <div class="card"><h2>Web Xfilter.vn (đề xuất, chưa đăng)</h2>
       <div class="row">${Object.keys(loai).map(k => `<span class="tag info">${esc(k)}: ${loai[k]}</span>`).join('')}
       <span class="tag ok">Sẵn sàng: ${ready}</span><span class="tag warn">Cần duyệt: ${P.length - ready}</span>
-      <span class="tag warn">Phân loại cần mã: ${D.CAN_MA.length}</span><span class="tag warn">Chờ anh duyệt: ${D.CHO.length}</span></div>
+      <span class="tag warn">Phân loại cần mã: ${D.CAN_MA.length}</span><span class="tag warn">Phân loại chờ duyệt: ${D.CHO.length}</span></div>
     </div>
-    <div class="card"><h2>Việc chờ anh</h2>
+    <div class="card"><h2>Việc chờ duyệt</h2>
       <div>Câu hỏi chưa trả lời: <b>${p.ch}</b> · Phân loại chờ duyệt: <b>${p.cho}</b> · Phân loại cần mã: <b>${p.ma}</b></div>
       <div class="muted" style="margin-top:6px">Quyết định lưu ở tab QUYET_DINH của Sheet. Claude đọc lại khi dựng đợt sau; app không tự đổi Shopee hay web Xfilter.vn.</div>
     </div>
@@ -492,7 +492,7 @@ function vWeb() {
   draw();
 }
 
-/* ============ Chờ anh ============ */
+/* ============ Chờ duyệt ============ */
 let CHO = { chiChua: true };
 function vCho() {
   const p = pending();
@@ -507,7 +507,7 @@ function vCho() {
       <div class="muted" style="margin-top:6px">Bấm lưu là ghi vào tab QUYET_DINH (có giờ, sửa lại được). Claude đọc khi làm đợt sau. Không tự đổi Shopee hay web Xfilter.vn.</div></div>
     <div class="card"><h2>Câu hỏi (${p.ch} chưa trả lời)</h2>
       ${Object.keys(nhom).length ? Object.keys(nhom).map(k => `<h3 style="margin-top:6px">${esc(k)}</h3>` + nhom[k].map(qCard).join('')).join('') : '<div class="muted">Không còn câu nào.</div>'}</div>
-    <div class="card"><h2>Phân loại chờ anh duyệt (${p.cho} chưa quyết)</h2>
+    <div class="card"><h2>Phân loại chờ duyệt (${p.cho} chưa quyết)</h2>
       <div class="muted" style="margin-bottom:8px">Có lên web không. Ghi kèm vào cột "Anh quyết" của tab WEB_CHO_ANH_DUYET.</div>
       ${D.CHO.filter(showC).map(choCard).join('') || '<div class="muted">Không còn.</div>'}</div>
     <div class="card"><h2>Phân loại cần mã (${p.ma} chưa có)</h2>
