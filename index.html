@@ -486,7 +486,7 @@ async function openSku(sku) {
   const shopCols = Object.keys(s).filter(k => /^Listing ở /.test(k));
   const webBt = D.BT.filter(b => flat(b['SKU']) === flat(sku));
   openPanel('SKU ' + sku, `
-    <div class="card"><div><span class="sku" style="font-size:20px">${esc(sku)}</span> ${statusTag(s['Trạng thái'])}</div>
+    <div class="card" id="skuHead"><div><span class="sku" style="font-size:20px">${esc(sku)}</span> ${statusTag(s['Trạng thái'])}</div>
       <div class="muted">${esc(s['Dòng hàng'])} · ${esc(s['Loại lọc'])}${s['Gồm mã cũ'] ? ' · gồm mã cũ: ' + esc(s['Gồm mã cũ']) : ''}</div>
       ${s['Cần kiểm tra'] ? '<div style="margin-top:6px"><span class="tag warn">' + esc(s['Cần kiểm tra']) + '</span></div>' : ''}
       <div class="row" style="margin-top:8px">${shopCols.filter(k => s[k]).map(k => `<span class="tag info">${esc(k.replace('Listing ở ', ''))}: ${esc(s[k])}</span>`).join('')}
@@ -503,9 +503,17 @@ async function openSku(sku) {
     if (!g) { box.innerHTML = '<div class="muted">SKU này chưa có trong file SKU gốc.</div>'; return; }
     const row = (k, v) => v ? `<tr><th style="width:34%">${esc(k)}</th><td>${v}</td></tr>` : '';
     if (g._bang === 'SKU_MLKK') {
+      // Phần đầu khung lấy CHÍNH hàng SKU_MLKK (cùng tập mã cũ với danh sách đang bán), không trộn THEO_SKU cũ (Note 35)
+      const head = $('skuHead');
+      if (head) head.innerHTML = `<div><span class="sku" style="font-size:20px">${esc(g['SKU chuẩn'])}</span> <span class="tag info">Phụ kiện MLKK</span></div>
+        <div class="muted">${esc(g['Loại lọc'])} · ${esc(g['Thương hiệu'] || 'chưa rõ hãng')}${g['Nguồn thương hiệu'] && g['Nguồn thương hiệu'] !== 'File KD' ? ' (' + esc(g['Nguồn thương hiệu']) + ')' : ''}</div>
+        ${g['Cần kiểm tra'] ? '<div style="margin-top:6px"><span class="tag warn" style="white-space:normal">' + esc(g['Cần kiểm tra']) + '</span></div>' : ''}
+        <div class="row" style="margin-top:8px"><span class="tag info">${esc(g['Số listing Shopee'])} listing · ${esc(g['Số phân loại'])} phân loại</span>
+          <span class="tag info">${esc(g['Shop đang bán'])}</span>
+          ${docGia(g['Giá Shopee thấp nhất']) != null ? `<span class="tag info">Giá ${khoangGia(g['Giá Shopee thấp nhất'], g['Giá Shopee cao nhất'])}</span>` : ''}</div>`;
       box.innerHTML = `<div class="scroll"><table>
         ${row('SKU chuẩn', '<span class="sku">' + esc(g['SKU chuẩn']) + '</span> · ' + esc(g['Loại lọc']) + ' · cụm Phụ kiện MLKK')}
-        ${row('Thương hiệu', esc(g['Thương hiệu']))}
+        ${row('Thương hiệu', esc(g['Thương hiệu']) + (g['Nguồn thương hiệu'] ? ' <span class="muted">· ' + esc(g['Nguồn thương hiệu']) + '</span>' : ''))}
         ${row('Model máy tương thích', esc(g['Model máy tương thích']))}
         ${row('Kích thước', esc(g['Kích thước']))}
         ${row('Giá về kho / giá bán (file KD)', esc(g['Giá về kho']) + (g['Giá bán (file)'] ? ' / ' + esc(g['Giá bán (file)']) : ''))}
@@ -641,7 +649,7 @@ async function showMoTa(handle) {
 }
 
 /* ============ SKU: chia theo cụm (anh Trung 05/10/2026) — Phụ kiện MLKK / robot / ô tô ============ */
-let SK = { cum: 'MLKK', sub: { MLKK: 'mth', OTO: 'th' }, q: '', n: 150, data: null };
+let SK = { cum: 'MLKK', sub: { MLKK: 'mth', OTO: 'th' }, q: { MLKK: '', OTO: '' }, n: 150, data: null };   // ô tìm riêng từng cụm
 async function vSku() {
   $('main').innerHTML = '<div class="loading">Đang đọc dữ liệu SKU…</div>';
   if (!SK.data) {
@@ -659,14 +667,24 @@ async function vSku() {
   }
   let subs, cols, src, ghi;
   if (SK.cum === 'MLKK') {
-    const can = [...SK.mlkk.filter(o => o['Cần kiểm tra']).map(o => Object.assign({ _loai: 'Tổng hợp', 'Model máy': o['Model máy tương thích'] }, o)),
-                 ...SK.mlkkFile.filter(o => o['Cần kiểm tra']).map(o => Object.assign({ _loai: 'File KD' }, o))];
-    subs = [['mth', 'Tổng hợp (' + SK.mlkk.length + ')'], ['mf', 'Theo file kinh doanh (' + SK.mlkkFile.length + ')'], ['mck', 'Cần kiểm tra (' + can.length + ')']];
-    cols = { mth: ['SKU chuẩn', 'Loại lọc', 'Thương hiệu', 'Model máy tương thích', 'Kích thước', 'Giá về kho', 'Giá bán (file)', 'Giá Shopee thấp nhất', 'Số listing Shopee', 'Shop đang bán', 'Cần kiểm tra'],
-             mf: ['SKU chuẩn', 'Thương hiệu', 'Model máy', 'Loại màng', 'Kích thước', 'Giá về kho', 'Giá bán (file)', 'Code listing LKX', 'Cần kiểm tra'],
-             mck: ['_loai', 'SKU chuẩn', 'Thương hiệu', 'Model máy', 'Cần kiểm tra'] }[SK.sub.MLKK];
+    // Cần kiểm tra: tách "chờ anh chọn" (ghép nhiều ứng viên) khỏi lỗi file thiếu giá/kích thước; 2 bảng đếm riêng (Note 35)
+    const can = [...SK.mlkkFile.filter(o => o['Cần kiểm tra'] || o['Ứng viên']).map(o => Object.assign({ _loai: 'File KD' }, o)),
+                 ...SK.mlkk.filter(o => o['Cần kiểm tra']).map(o => Object.assign({ _loai: 'Tổng hợp', 'Model máy': o['Model máy tương thích'] }, o))];
+    const choChon = SK.mlkkFile.filter(o => o['Ứng viên']).length;
+    subs = [['mth', 'Tổng hợp (' + SK.mlkk.length + ' SKU)'], ['mf', 'Theo file kinh doanh (' + SK.mlkkFile.length + ' dòng)'],
+            ['mck', 'Cần kiểm tra (' + can.length + ' dòng' + (choChon ? ', ' + choChon + ' chờ anh chọn' : '') + ')']];
+    cols = { mth: ['SKU chuẩn', 'Cần kiểm tra', 'Loại lọc', 'Thương hiệu', 'Model máy tương thích', 'Kích thước', 'Giá về kho', 'Giá bán (file)', 'Giá Shopee thấp nhất', 'Số listing Shopee', 'Shop đang bán'],
+             mf: ['STT gốc', 'SKU chuẩn', 'Cần kiểm tra', 'Thương hiệu', 'Model máy', 'Loại màng', 'Kích thước', 'Giá về kho', 'Giá bán (file)', 'Cách ghép', 'Ứng viên', 'Listing theo link file', 'Listing bằng chứng'],
+             mck: ['_loai', 'STT gốc', 'SKU chuẩn', 'Cần kiểm tra', 'Ứng viên', 'Thương hiệu', 'Model máy', 'Cách ghép'] }[SK.sub.MLKK];
     src = { mth: SK.mlkk, mf: SK.mlkkFile, mck: can }[SK.sub.MLKK];
-    ghi = 'SKU = tấm lọc vật lý của 3 shop Lọc Khí Xanh (LKX), Màng Lọc Xanh (MLX), HepaHN. Mã gom từ phân loại Shopee, chỉ chuẩn hoá cách viết (0509COMBO → 0509 COMBO, BU AM → BÙ ẨM, 305 X 265 X 35 → 305-265-35), không gộp model khác nhau. Thương hiệu, model, kích thước, giá lấy từ file KINH DOANH TRUNG QUYÊN_V2 (sheet LKX_TONGHOP). Sửa ở file gốc rồi chạy cập nhật; không sửa ở đây.';
+    const m = SK.data.mlkkMeta || {}, kd = m.nguon_kd || {};
+    const canhBao = m.cu ? 'Bảng đang là BẢN CŨ (không thấy file kinh doanh lúc cập nhật).' : m.lech ? 'Bảng dựng từ bản xuất Shopee khác bản đang nạp — chạy lại cập nhật.' : '';
+    ghi = `<div class="muted" style="margin-top:6px">Nguồn: ${esc(kd.ten || 'file kinh doanh')}${kd.sua_luc ? ' (sửa ' + esc(String(kd.sua_luc).replace('T', ' ')) + ', sha ' + esc(String(kd.sha256 || '').slice(0, 10)) + ')' : ''} · Shopee: ${esc(((m.nguon_shopee || {}).ban_xuat || '').split(' · ')[0] || '—')} · dựng ${esc(String(m.ngay || '').replace('T', ' '))}</div>
+      ${canhBao ? `<div style="margin-top:6px"><span class="tag bad" style="white-space:normal">${esc(canhBao)}</span></div>` : ''}
+      <details style="margin-top:6px"><summary class="muted" style="cursor:pointer">Cách đọc bảng</summary><div class="muted" style="margin-top:4px">
+        SKU = tấm lọc vật lý của 3 shop Lọc Khí Xanh (LKX), Màng Lọc Xanh (MLX), HepaHN, gom từ phân loại Shopee, chỉ chuẩn hoá cách viết (0509COMBO → 0509 COMBO, BU AM → BÙ ẨM, 305 X 265 X 35 → 305-265-35), không gộp model khác nhau, không gộp theo mã kho app Báo cáo.
+        Model, kích thước, giá lấy từ file kinh doanh khi dòng file đã ghép được; thương hiệu ghi "suy từ tên listing / đoán theo mã" là CHƯA xác nhận.
+        Dòng "Chờ xác nhận" có nhiều ứng viên như nhau — app không tự chọn. Sửa ở file gốc rồi chạy cập nhật; không sửa ở đây.</div></details>`;
   } else {
     const can = [...SK.dieuHoa.map(o => Object.assign({ _loai: 'Điều hoà' }, o)), ...SK.dongCo.map(o => Object.assign({ _loai: 'Động cơ' }, o))].filter(o => o['Cần kiểm tra']);
     subs = [['th', 'Tổng hợp (' + SK.tongHop.length + ')'], ['dh', 'Lọc điều hoà (' + SK.dieuHoa.length + ')'], ['dc', 'Lọc động cơ (' + SK.dongCo.length + ')'], ['ck', 'Cần kiểm tra (' + can.length + ')']];
@@ -675,24 +693,26 @@ async function vSku() {
              dc: ['SKU chuẩn', 'Hãng xe', 'Dòng xe', 'Động cơ', 'Đời xe', 'Kích thước', 'Mã cũ (cột E)', 'Cần kiểm tra'],
              ck: ['_loai', 'SKU chuẩn', 'Hãng xe', 'Dòng xe', 'Đời xe', 'Cần kiểm tra'] }[SK.sub.OTO];
     src = { th: SK.tongHop, dh: SK.dieuHoa, dc: SK.dongCo, ck: can }[SK.sub.OTO];
-    ghi = 'Từ file quản lý SKU (XFILTER2.numbers) đã chuẩn hoá: SKU ngắn, hãng, đời, kích thước cùng một kiểu. Sửa ở file gốc rồi chạy cập nhật; không sửa ở đây.';
+    ghi = '<div class="muted" style="margin-top:6px">Từ file quản lý SKU (XFILTER2.numbers) đã chuẩn hoá: SKU ngắn, hãng, đời, kích thước cùng một kiểu. Sửa ở file gốc rồi chạy cập nhật; không sửa ở đây.</div>';
   }
   const subNow = SK.sub[SK.cum];
   $('main').innerHTML = `
     <div class="card" style="padding-bottom:8px">${cumChips}
       <div class="row" style="gap:4px;margin-top:8px">${subs.map(([k, t]) => `<span class="chip ${subNow === k ? 'on' : ''}" data-sksub="${k}">${esc(t)}</span>`).join('')}</div>
-      <div class="row" style="margin-top:8px"><input id="skq" class="search" type="search" placeholder="${SK.cum === 'MLKK' ? 'Tìm SKU, hãng máy, model, kích thước…' : 'Tìm SKU, mã OEM, xe, kích thước…'}" value="${esc(SK.q)}"></div>
-      <div class="muted" style="margin-top:6px">${esc(ghi)}</div></div>
+      <div class="row" style="margin-top:8px"><input id="skq" class="search" type="search" placeholder="${SK.cum === 'MLKK' ? 'Tìm SKU, hãng máy, model, kích thước…' : 'Tìm SKU, mã OEM, xe, kích thước…'}" value="${esc(SK.q[SK.cum] || '')}"></div>
+      ${ghi}</div>
     <div class="card" id="skres"></div>`;
   bindCum();
   document.querySelectorAll('[data-sksub]').forEach(c => c.onclick = () => { SK.sub[SK.cum] = c.dataset.sksub; SK.n = 150; vSku(); });
   const draw = () => {
-    const words = norm(SK.q).split(' ').filter(Boolean);
+    const words = norm(SK.q[SK.cum] || '').split(' ').filter(Boolean);
     const rows = src.filter(o => words.every(w => (o._k || '').indexOf(w) >= 0));
     const cell = (o, c) => {
       const v = String(o[c] == null ? '' : o[c]);
       if (c === 'SKU chuẩn') return v ? `<span class="sku" data-sku="${esc(v)}" style="cursor:pointer">${esc(v)}</span>` : '<span class="muted">chưa ghép</span>';
-      if (c === 'Cần kiểm tra' || c === 'Ghi chú') return v ? `<span class="tag warn">${esc(v)}</span>` : '';
+      if (c === 'Cần kiểm tra' || c === 'Ghi chú') return v ? `<span class="tag warn" style="white-space:normal;display:inline">${esc(v)}</span>` : '';
+      if (c === 'Ứng viên') return v ? v.split(', ').map(x => `<span class="sku" data-sku="${esc(x)}" style="cursor:pointer;margin-right:6px">${esc(x)}</span>`).join('') : '';
+      if (c === 'Thương hiệu' && o['Nguồn thương hiệu'] && o['Nguồn thương hiệu'] !== 'File KD') return esc(v) + (v ? ' <span class="muted">(suy)</span>' : '');
       return esc(v.length > 120 ? v.slice(0, 120) + '…' : v);
     };
     $('skres').innerHTML = `<h2>${rows.length} dòng</h2><div class="scroll"><table><tr>${cols.map(c => `<th>${esc(c === '_loai' ? 'Bảng' : c)}</th>`).join('')}</tr>
@@ -701,7 +721,7 @@ async function vSku() {
     $('skres').querySelectorAll('[data-sku]').forEach(el => el.onclick = () => openSku(el.dataset.sku));
     const m = $('skMore'); if (m) m.onclick = () => { SK.n += 300; draw(); };
   };
-  $('skq').oninput = () => { SK.q = $('skq').value; SK.n = 150; clearTimeout(vSku.h); vSku.h = setTimeout(draw, 150); };
+  $('skq').oninput = () => { SK.q[SK.cum] = $('skq').value; SK.n = 150; clearTimeout(vSku.h); vSku.h = setTimeout(draw, 150); };
   draw();
 }
 
