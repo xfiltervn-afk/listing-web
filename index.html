@@ -157,13 +157,14 @@
     </div>
     <nav id="nav">
       <button data-v="tq" class="on">Tổng quan</button>
+      <button data-v="sku">SKU</button>
       <button data-v="tc">Tra cứu</button>
       <button data-v="sp">Shopee</button>
       <button data-v="web">Web Xfilter.vn</button>
       <button data-v="cho">Chờ duyệt <span class="badge hidden" id="choBadge"></span></button>
     </nav>
   </header>
-  <main id="main"><div class="loading">Đang đọc dữ liệu từ Sheet…</div></main>
+  <main id="main"><div class="loading">Đang đọc dữ liệu…</div></main>
 </div>
 
 <div id="ov" class="ov hidden"><div class="panel"><div class="ph"><span class="t" id="pT"></span><button id="pClose">Đóng</button></div><div class="pb" id="pB"></div></div></div>
@@ -244,15 +245,15 @@ $('pwBtn').onclick = () => {
 /* ============ Khởi động ============ */
 async function start() {
   $('login').classList.add('hidden'); $('app').classList.remove('hidden');
-  $('main').innerHTML = '<div class="loading">Đang đọc dữ liệu từ Sheet…</div>';
+  $('main').innerHTML = '<div class="loading">Đang đọc dữ liệu…</div>';
   try {
     D = await call('bootstrap', TOKEN);
     prep();
     render();
   } catch (e) { $('main').innerHTML = '<div class="card err">' + esc(e.message) + '</div>'; }
 }
-$('reloadBtn').onclick = () => start();
-$('nav').onclick = e => { const b = e.target.closest('button'); if (!b) return; VIEW = b.dataset.v; render(); };
+$('reloadBtn').onclick = () => { SK.data = null; start(); };
+$('nav').onclick = e => { const b = e.target.closest('button'); if (!b || !D) return; VIEW = b.dataset.v; render(); };
 
 // Chuẩn bị dữ liệu: object hoá + chỉ mục tìm kiếm
 function prep() {
@@ -289,7 +290,7 @@ function render() {
   document.querySelectorAll('#nav button').forEach(b => b.classList.toggle('on', b.dataset.v === VIEW));
   const p = pending(); const bd = $('choBadge');
   bd.textContent = p.all; bd.classList.toggle('hidden', !p.all);
-  ({ tq: vTongQuan, tc: vTraCuu, sp: vShopee, web: vWeb, cho: vCho })[VIEW]();
+  ({ tq: vTongQuan, sku: vSku, tc: vTraCuu, sp: vShopee, web: vWeb, cho: vCho })[VIEW]();
   window.scrollTo(0, 0);
 }
 
@@ -470,7 +471,15 @@ async function openListing(id) {
     <div class="card"><div class="t" style="font-weight:700">${esc(l['Tên listing'] || id)}</div>
       <div class="muted">${esc(l['Shop'])} · ${esc(l['Dòng hàng'])} · ${esc(l['Số phân loại'])} phân loại · tồn ${esc(l['Tổng tồn'])} ${statusTag(l['Trạng thái rà (app)'])}</div>
       <div style="margin-top:6px">${links(l['Shop'], id)}</div></div>
-    <div class="card"><h2>Phân loại</h2><div id="lsPl"><div class="loading">Đang đọc…</div></div></div>`);
+    <div class="card"><h2>Phân loại</h2><div id="lsPl"><div class="loading">Đang đọc…</div></div></div>
+    <div class="card"><h2>Mô tả trên Shopee</h2><div id="lsMt"><div class="loading">Đang đọc…</div></div></div>`);
+  call('moTaShopee', TOKEN, id).then(m => {
+    const box = $('lsMt'); if (!box) return;
+    if (!m) { box.innerHTML = '<div class="muted">Chưa có mô tả trong dữ liệu.</div>'; return; }
+    const mt = String(m['Mô tả'] || '');
+    box.innerHTML = `<div class="muted" style="margin-bottom:6px">${fmt(mt.length)} ký tự${m['SKU sản phẩm'] ? ' · SKU sản phẩm: <span class="sku">' + esc(m['SKU sản phẩm']) + '</span>' : ''}${m['Ghi chú rà'] ? ' · ghi chú: ' + esc(m['Ghi chú rà']) : ''} · bản xuất 27–28/09</div>
+      <div class="ws" style="max-height:420px;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:10px;background:#fbfcfd">${esc(mt) || '<span class="muted">(trống)</span>'}</div>`;
+  }).catch(e => { const box = $('lsMt'); if (box) box.innerHTML = '<div class="err">' + esc(e.message) + '</div>'; });
   try {
     const rows = objs(await call('phanLoaiTheoListing', TOKEN, id));
     $('lsPl').innerHTML = plTable(rows, false);
@@ -546,6 +555,47 @@ async function showMoTa(handle) {
     f.onload = () => { try { f.style.height = (f.contentDocument.documentElement.scrollHeight + 10) + 'px'; } catch (e) { f.style.height = '600px'; } };
     box.innerHTML = ''; box.appendChild(f);
   } catch (e) { const box = $('mtBox'); if (box) box.innerHTML = '<div class="err" style="padding:10px">' + esc(e.message) + '</div>'; }
+}
+
+/* ============ SKU: dữ liệu SKU gốc (file quản lý SKU đã chuẩn hoá) ============ */
+let SK = { sub: 'th', q: '', n: 150, data: null };
+async function vSku() {
+  $('main').innerHTML = '<div class="loading">Đang đọc dữ liệu SKU…</div>';
+  if (!SK.data) {
+    try { SK.data = await call('bangSku', TOKEN); } catch (e) { $('main').innerHTML = '<div class="card err">' + esc(e.message) + '</div>'; return; }
+    ['tongHop', 'dieuHoa', 'dongCo'].forEach(k => { SK[k] = objs(SK.data[k]); SK[k].forEach(o => o._k = norm(Object.values(o).join(' '))); });
+  }
+  const can = [...SK.dieuHoa.map(o => Object.assign({ _loai: 'Điều hoà' }, o)), ...SK.dongCo.map(o => Object.assign({ _loai: 'Động cơ' }, o))].filter(o => o['Cần kiểm tra']);
+  const subs = [['th', 'Tổng hợp (' + SK.tongHop.length + ')'], ['dh', 'Lọc điều hoà (' + SK.dieuHoa.length + ')'], ['dc', 'Lọc động cơ (' + SK.dongCo.length + ')'], ['ck', 'Cần kiểm tra (' + can.length + ')']];
+  $('main').innerHTML = `
+    <div class="card" style="padding-bottom:8px"><div class="row" style="gap:4px">${subs.map(([k, t]) => `<span class="chip ${SK.sub === k ? 'on' : ''}" data-sksub="${k}">${esc(t)}</span>`).join('')}</div>
+      <div class="row" style="margin-top:8px"><input id="skq" class="search" type="search" placeholder="Tìm SKU, mã OEM, xe, kích thước…" value="${esc(SK.q)}"></div>
+      <div class="muted" style="margin-top:6px">Từ file quản lý SKU (XFILTER2.numbers) đã chuẩn hoá: SKU ngắn, hãng, đời, kích thước cùng một kiểu. Sửa ở file gốc rồi chạy cập nhật; không sửa ở đây.</div></div>
+    <div class="card" id="skres"></div>`;
+  document.querySelectorAll('[data-sksub]').forEach(c => c.onclick = () => { SK.sub = c.dataset.sksub; SK.n = 150; vSku(); });
+  const cols = {
+    th: ['SKU chuẩn', 'Loại', 'Kích thước', 'Số dòng xe', 'Hãng xe', 'Mã listing web', 'Bản trên Shopee', 'Số listing Shopee', 'Ghi chú'],
+    dh: ['SKU chuẩn', 'Hãng xe', 'Dòng xe', 'Đời xe', 'Kích thước Xfilter', 'Mã OEM (theo hãng)', 'Cần kiểm tra'],
+    dc: ['SKU chuẩn', 'Hãng xe', 'Dòng xe', 'Động cơ', 'Đời xe', 'Kích thước', 'Mã cũ (cột E)', 'Cần kiểm tra'],
+    ck: ['_loai', 'SKU chuẩn', 'Hãng xe', 'Dòng xe', 'Đời xe', 'Cần kiểm tra'] }[SK.sub];
+  const src = { th: SK.tongHop, dh: SK.dieuHoa, dc: SK.dongCo, ck: can }[SK.sub];
+  const draw = () => {
+    const words = norm(SK.q).split(' ').filter(Boolean);
+    const rows = src.filter(o => words.every(w => (o._k || '').indexOf(w) >= 0));
+    const cell = (o, c) => {
+      const v = String(o[c] == null ? '' : o[c]);
+      if (c === 'SKU chuẩn') return `<span class="sku" data-sku="${esc(v)}" style="cursor:pointer">${esc(v)}</span>`;
+      if (c === 'Cần kiểm tra' || c === 'Ghi chú') return v ? `<span class="tag warn">${esc(v)}</span>` : '';
+      return esc(v.length > 120 ? v.slice(0, 120) + '…' : v);
+    };
+    $('skres').innerHTML = `<h2>${rows.length} dòng</h2><div class="scroll"><table><tr>${cols.map(c => `<th>${esc(c === '_loai' ? 'Loại' : c)}</th>`).join('')}</tr>
+      ${rows.slice(0, SK.n).map(o => `<tr>${cols.map(c => `<td>${cell(o, c)}</td>`).join('')}</tr>`).join('')}</table></div>` +
+      (rows.length > SK.n ? `<div style="margin-top:10px"><button class="btn ghost" id="skMore">Xem thêm (${rows.length - SK.n})</button></div>` : '');
+    $('skres').querySelectorAll('[data-sku]').forEach(el => el.onclick = () => openSku(el.dataset.sku));
+    const m = $('skMore'); if (m) m.onclick = () => { SK.n += 300; draw(); };
+  };
+  $('skq').oninput = () => { SK.q = $('skq').value; SK.n = 150; clearTimeout(vSku.h); vSku.h = setTimeout(draw, 150); };
+  draw();
 }
 
 /* ============ Shopee: tab con Tổng quan / từng shop / Theo SKU ============ */
