@@ -18,6 +18,7 @@
 // Thay google.script.run: gọi server Master Listing (POST JSON, token trong header Authorization; không dùng cookie)
 (function () {
   const API = 'https://listing-api.xfilter.com.vn';
+  window.ML_API = API;   // ảnh listing: link ký do server trả là đường dẫn tương đối (Note 37)
   const RIENG = { trangThaiMatKhau: a => ['/api/trang-thai', {}, ''],
     taoTaiKhoanDau: a => ['/api/tao-tai-khoan-dau', { ten: a[0], mat_khau: a[1], ma: a[2] }, ''],
     login: a => ['/api/dang-nhap', { ten: a[0], mat_khau: a[1] }, ''],
@@ -93,6 +94,16 @@
   .tag.warn { background: var(--warn-bg); color: var(--warn); }
   .tag.bad { background: var(--bad-bg); color: var(--bad); }
   .tag.info { background: var(--chip); color: var(--brand); }
+  .anh-luoi { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 8px; }
+  .anh-o { position: relative; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: #f4f6f8; cursor: pointer; }
+  .anh-o img { display: block; width: 100%; aspect-ratio: 1 / 1; object-fit: cover; }
+  .anh-o .video { display: flex; align-items: center; justify-content: center; aspect-ratio: 1 / 1; font-size: 30px; color: var(--brand); }
+  .anh-o .ten { font-size: 11px; padding: 3px 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; background: var(--card); }
+  .anh-o .nhan { position: absolute; top: 4px; left: 4px; }
+  #anhXem { position: fixed; inset: 0; background: rgba(10, 20, 30, .88); z-index: 50; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 16px; }
+  #anhXem img { max-width: 100%; max-height: calc(100% - 70px); border-radius: 8px; background: #fff; }
+  #anhXem .thanh { color: #fff; margin-top: 10px; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; justify-content: center; font-size: 14px; }
+  #anhXem a, #anhXem button { color: #fff; }
   .item { padding: 10px 2px; border-bottom: 1px solid var(--line); cursor: pointer; }
   .item:hover { background: #f7f9fc; }
   .item:last-child { border-bottom: 0; }
@@ -193,6 +204,44 @@ const khoangGia = (a, b) => {
   if (x == null || y == null || x === y) return gia(x == null ? y : x);
   return x.toLocaleString('vi-VN') + '–' + gia(y);
 };
+// Ảnh listing (Note 37): link ảnh do server ký, gắn địa chỉ API của bản web
+const anhUrl = u => u ? (window.ML_API || '') + u : '';
+const anhTag = ma => { const d = D && D.anhDem && D.anhDem[ma]; if (!d) return '';
+  return `<span class="tag ok" title="Ảnh / video trong kho Drive">Ảnh ${d[0]}${d[1] ? ' · video ' + d[1] : ''}</span>${d[2] ? ` <span class="tag warn">nháp ${d[2]}</span>` : ''}`; };
+function cardAnh(ma) {
+  return ma ? `<div class="card"><h2>Ảnh & video <span class="muted" style="font-weight:400;font-size:13px">${esc(ma)}</span></h2><div id="anhBox" data-ma="${esc(ma)}"><div class="loading">Đang đọc…</div></div></div>` : '';
+}
+async function napAnh(ma) {
+  const box = () => { const b = $('anhBox'); return b && b.dataset.ma === ma ? b : null; };
+  if (!ma || !box()) return;
+  try {
+    const r = await call('anhListing', TOKEN, ma);
+    const b = box(); if (!b) return;
+    const moDrive = r.moDrive ? `<a class="btn ghost" href="${esc(r.moDrive)}" target="_blank" rel="noopener">Mở thư mục trên Drive ↗</a>` : '';
+    const chan = `<div class="muted" style="margin-top:8px">Kho: Drive xfiltertool / MASTER_LISTING${r.thuMuc ? ' / ' + esc(r.thuMuc) : ''}${r.capNhat ? ' · ảnh cập nhật lúc ' + esc(r.capNhat.replace('T', ' ').slice(0, 16)) : ''}.
+      Thêm ảnh: để vào thư mục Drive của mã này (bản chưa duyệt để trong <b>_nhap</b>), rồi chạy <b>DONG_BO_ANH.command</b>.</div>`;
+    if (!r.tep || !r.tep.length) { b.innerHTML = `<div class="muted">Chưa có ảnh / video cho mã này.</div><div style="margin-top:8px">${moDrive}</div>${chan}`; return; }
+    b.innerHTML = `<div class="anh-luoi">${r.tep.map((t, i) => `<div class="anh-o" data-i="${i}" title="${esc(t.ten)} · ${t.kb} KB">
+        ${t.nho ? `<img loading="lazy" alt="${esc(t.ten)}" src="${esc(anhUrl(t.nho))}">` : `<div class="video">${t.loai === 'video' ? '▶' : '?'}</div>`}
+        <div class="nhan">${t.nhap ? '<span class="tag warn">nháp</span>' : ''}${t.loai === 'video' ? ' <span class="tag info">video</span>' : ''}${!t.nhap && i === 0 && t.loai === 'anh' ? '<span class="tag info">bìa</span>' : ''}</div>
+        <div class="ten">${esc(t.ten)}</div></div>`).join('')}</div>
+      <div style="margin-top:10px">${moDrive}</div>${chan}`;
+    b.querySelectorAll('.anh-o').forEach(el => el.onclick = () => xemAnh(r.tep, +el.dataset.i));
+  } catch (e) { const b = box(); if (b) b.innerHTML = '<div class="err">' + esc(e.message) + '</div>'; }
+}
+function xemAnh(ds, i) {
+  const t = ds[i];
+  if (t.loai === 'video' || !t.vua) { if (t.drive) window.open(t.drive, '_blank', 'noopener'); else toast('Video chưa có link Drive (chờ Drive đồng bộ lên mây rồi chạy lại đồng bộ ảnh).'); return; }
+  let o = $('anhXem'); if (o) o.remove();
+  o = document.createElement('div'); o.id = 'anhXem';
+  o.innerHTML = `<img alt="${esc(t.ten)}" src="${esc(anhUrl(t.vua))}"><div class="thanh">
+    <button class="btn ghost" data-b="-1">‹ Trước</button><span>${esc(t.ten)}${t.nhap ? ' · nháp' : ''} · ${i + 1}/${ds.length}</span>
+    <button class="btn ghost" data-b="1">Sau ›</button>${t.drive ? `<a href="${esc(t.drive)}" target="_blank" rel="noopener">Mở trên Drive ↗</a>` : ''}<button class="btn ghost" data-b="0">Đóng</button></div>`;
+  document.body.appendChild(o);
+  const di = d => { const k = i + d; if (k >= 0 && k < ds.length) xemAnh(ds, k); };
+  o.onclick = e => { const b = e.target.closest('[data-b]'); if (b) { const d = +b.dataset.b; d ? di(d) : o.remove(); } else if (e.target === o) o.remove(); };
+  document.onkeydown = e => { if (!$('anhXem')) return; if (e.key === 'Escape') o.remove(); if (e.key === 'ArrowLeft') di(-1); if (e.key === 'ArrowRight') di(1); };
+}
 function toast(msg) { const t = $('toast'); t.textContent = msg; t.classList.remove('hidden'); clearTimeout(toast.h); toast.h = setTimeout(() => t.classList.add('hidden'), 3500); }
 function call(fn, ...args) {
   return new Promise((ok, bad) => google.script.run.withSuccessHandler(ok).withFailureHandler(e => {
@@ -393,12 +442,12 @@ function results() {
 }
 function listItem(l) {
   return `<div class="item" data-list="${esc(l['Mã listing'])}">
-    <div class="t">${l['Code listing'] ? '<span class="sku" style="color:var(--brand-2)">' + esc(l['Code listing']) + '</span> ' : ''}${esc(l['Tên listing'])}</div>
+    <div class="t">${l['Code listing'] ? '<span class="sku" style="color:var(--brand-2)">' + esc(l['Code listing']) + '</span> ' : ''}${esc(l['Tên listing'])} ${anhTag(l['Code listing'])}</div>
     <div class="muted">${esc(l['Shop'])} · ${esc(l['Số phân loại'])} phân loại · SKU: <span class="sku">${esc(l['SKU chuẩn'])}</span> · giá ${khoangGia(l['Giá thấp nhất'], l['Giá cao nhất'])} · tồn ${esc(l['Tổng tồn'])} ${statusTag(l['Trạng thái rà (app)'])}</div></div>`;
 }
 function pageItem(p) {
   return `<div class="item" data-page="${esc(p['URL (handle)'])}">
-    <div class="t">${p['Mã listing'] ? '<span class="sku" style="color:var(--brand-2)">' + esc(p['Mã listing']) + '</span> ' : ''}${esc(p['Tên trang'])} ${statusTag(p['Trạng thái'])} ${D.MT[p['URL (handle)']] ? '<span class="tag info">Có mô tả</span>' : ''}</div>
+    <div class="t">${p['Mã listing'] ? '<span class="sku" style="color:var(--brand-2)">' + esc(p['Mã listing']) + '</span> ' : ''}${esc(p['Tên trang'])} ${statusTag(p['Trạng thái'])} ${D.MT[p['URL (handle)']] ? '<span class="tag info">Có mô tả</span>' : ''} ${anhTag(p['Mã listing'])}</div>
     <div class="muted">${esc(p['Dòng hàng'])} · ${esc(p['Số biến thể'])} biến thể · SKU: <span class="sku">${esc(p['SKU'])}</span> · ${khoangGia(p['Giá thấp nhất'], p['Giá cao nhất'])}${p['Cần duyệt'] ? ' · <b>' + esc(p['Cần duyệt']) + '</b>' : ''}</div></div>`;
 }
 function bindItems(root) {
@@ -501,8 +550,10 @@ async function openListing(id) {
     <div class="card"><div class="t" style="font-weight:700">${esc(l['Tên listing'] || id)}</div>
       <div class="muted">${esc(l['Shop'])} · ${esc(l['Dòng hàng'])} · ${esc(l['Số phân loại'])} phân loại · tồn ${esc(l['Tổng tồn'])} ${statusTag(l['Trạng thái rà (app)'])}</div>
       <div style="margin-top:6px">${links(l['Shop'], id)}</div></div>
+    ${cardAnh(l['Code listing'])}
     <div class="card"><h2>Phân loại</h2><div id="lsPl"><div class="loading">Đang đọc…</div></div></div>
     <div class="card"><h2>Mô tả trên Shopee</h2><div id="lsMt"><div class="loading">Đang đọc…</div></div></div>`);
+  napAnh(l['Code listing']);
   call('moTaShopee', TOKEN, id).then(m => {
     const box = $('lsMt'); if (!box) return;
     if (!m) { box.innerHTML = '<div class="muted">Chưa có mô tả trong dữ liệu.</div>'; return; }
@@ -528,6 +579,7 @@ function openPage(handle) {
       <div class="muted" style="margin-top:4px">URL dự kiến: /products/${esc(handle)}</div>
       ${p['Cần duyệt'] ? '<div style="margin-top:6px"><span class="tag warn">' + esc(p['Cần duyệt']) + '</span></div>' : ''}
       <div style="margin-top:6px" class="muted">Listing Shopee nguồn (${esc(xfShop())}): ${src.map(i => `<a href="${shopUrl(xfShop(), i)}" target="_blank" rel="noopener">${i} ↗</a> <a href="#" data-list="${i}">xem</a>`).join(' · ') || '—'}</div></div>
+    ${cardAnh(p['Mã listing'])}
     ${p['Thương hiệu'] !== undefined ? haravanCard(p, bt, mw) : ''}
     <div class="card"><h2>Biến thể (${bt.length})</h2><div class="scroll"><table>
       <tr><th>Đời xe</th><th>Bản lọc / động cơ</th><th>SKU</th><th class="num">Giá</th></tr>
@@ -546,6 +598,7 @@ function openPage(handle) {
   $('pB').querySelectorAll('[data-list]').forEach(el => el.onclick = e => { e.preventDefault(); openListing(el.dataset.list); });
   $('pB').querySelectorAll('[data-sku]').forEach(el => el.onclick = () => openSku(el.dataset.sku));
   if (mw) showMoTa(handle);
+  napAnh(p['Mã listing']);
 }
 // Các trường trên form sản phẩm Haravan (WEB_TRANG cột P→U, WEB_BIEN_THE cột H→L)
 function haravanCard(p, bt, mw) {
