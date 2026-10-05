@@ -162,7 +162,7 @@
   <header>
     <div class="top">
       <b>MASTER LISTING</b><span class="sp"></span>
-      <button id="reloadBtn" title="Đọc lại dữ liệu từ Sheet">↻ Tải lại</button>
+      <button id="reloadBtn" title="Đọc lại dữ liệu từ máy chủ Master Listing">↻ Tải lại</button>
       <button id="pwBtn">Đổi mật khẩu</button>
       <button id="outBtn">Thoát</button>
     </div>
@@ -301,7 +301,7 @@ $('pwBtn').onclick = () => {
     try {
       if ($('np1').value !== $('np2').value) throw new Error('Hai lần nhập không khớp.');
       await call('doiMatKhau', TOKEN, $('op').value, $('np1').value);
-      closePanel(); toast('Đã đổi mật khẩu.');
+      closePanel(); toast('Đã đổi mật khẩu. Các máy/trình duyệt khác đã bị đăng xuất.');
     } catch (e) { $('npErr').textContent = e.message; }
   };
 };
@@ -843,7 +843,7 @@ function vCho() {
     <div class="card"><h2>Câu hỏi (${p.ch} chưa trả lời)</h2>
       ${Object.keys(nhom).length ? Object.keys(nhom).map(k => `<h3 style="margin-top:6px">${esc(k)}</h3>` + nhom[k].map(qCard).join('')).join('') : '<div class="muted">Không còn câu nào.</div>'}</div>
     <div class="card"><h2>Phân loại chờ duyệt (${p.cho} chưa quyết)</h2>
-      <div class="muted" style="margin-bottom:8px">Có lên web không. Ghi kèm vào cột "Anh quyết" của tab WEB_CHO_ANH_DUYET.</div>
+      <div class="muted" style="margin-bottom:8px">Có lên web không. Quyết định lưu trong app (cơ sở dữ liệu Master Listing), có bản sao ở tab QUYET_DINH của Google Sheet.</div>
       ${D.CHO.filter(showC).map(choCard).join('') || '<div class="muted">Không còn.</div>'}</div>
     <div class="card"><h2>Phân loại cần mã (${p.ma} chưa có)</h2>
       <div class="muted" style="margin-bottom:8px">Phân loại chưa có SKU dùng được. Anh gõ SKU đúng (hoặc "Bỏ" nếu tổ hợp không tồn tại).</div>
@@ -901,7 +901,7 @@ async function save(btn) {
   try {
     const r = await call('luuQuyetDinh', TOKEN, d);
     D.qd[d.loai + '|' + d.khoa] = { qd: r.qd, ghiChu: r.ghiChu, luc: r.luc };
-    toast('Đã lưu vào Sheet.');
+    toast('Đã lưu vào cơ sở dữ liệu Master Listing.');
     render();
   } catch (e) { toast(e.message); btn.disabled = false; btn.textContent = 'Lưu'; }
 }
