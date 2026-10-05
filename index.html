@@ -179,6 +179,20 @@ const norm = s => String(s == null ? '' : s).normalize('NFD').replace(/[̀-ͯ]/g
 const flat = s => norm(s).replace(/[\s\-_.\/]/g, '');
 const fmt = n => Number(n || 0).toLocaleString('vi-VN');
 const num = s => Number(String(s == null ? '' : s).replace(/[^\d\-]/g, '')) || 0;
+// Giá (anh Trung 05/10/2026, sửa lỗi 450.000 → 450 / NaN): nhận số hoặc chuỗi nghìn "1.068.000"; trống/sai → null, hiện "—" chứ không hiện 0
+const docGia = v => {
+  if (typeof v === 'number') return Number.isFinite(v) ? Math.round(v) : null;
+  const s = String(v == null ? '' : v).trim().replace(/\s*(₫|đ|vnd)$/i, '');
+  if (/^\d+$/.test(s) || /^\d{1,3}([.,]\d{3})+$/.test(s)) return Number(s.replace(/[.,]/g, ''));
+  return null;
+};
+const gia = v => { const n = docGia(v); return n == null ? '—' : n.toLocaleString('vi-VN') + ' ₫'; };
+const khoangGia = (a, b) => {
+  const x = docGia(a), y = docGia(b);
+  if (x == null && y == null) return '—';
+  if (x == null || y == null || x === y) return gia(x == null ? y : x);
+  return x.toLocaleString('vi-VN') + '–' + gia(y);
+};
 function toast(msg) { const t = $('toast'); t.textContent = msg; t.classList.remove('hidden'); clearTimeout(toast.h); toast.h = setTimeout(() => t.classList.add('hidden'), 3500); }
 function call(fn, ...args) {
   return new Promise((ok, bad) => google.script.run.withSuccessHandler(ok).withFailureHandler(e => {
@@ -365,7 +379,7 @@ function results() {
     <div class="card"><h2>SKU (${skus.length}${skus.length === 40 ? '+' : ''})</h2>
       ${skus.length ? skus.map(s => `<div class="item" data-sku="${esc(s['SKU chuẩn'])}">
         <span class="sku">${esc(s['SKU chuẩn'])}</span> ${statusTag(s['Trạng thái'])}
-        <div class="muted">${esc(s['Dòng hàng'])} · ${esc(s['Loại lọc'])} · ${esc(s['Số shop'])} shop · ${esc(s['Tổng listing'])} listing · giá ${fmt(s['Giá thấp nhất'])}–${fmt(s['Giá cao nhất'])}
+        <div class="muted">${esc(s['Dòng hàng'])} · ${esc(s['Loại lọc'])} · ${esc(s['Số shop'])} shop · ${esc(s['Tổng listing'])} listing · giá ${khoangGia(s['Giá thấp nhất'], s['Giá cao nhất'])}
         ${s['Gồm mã cũ'] ? ' · mã cũ: ' + esc(s['Gồm mã cũ']) : ''}${s['Cần kiểm tra'] ? ' · <b>' + esc(s['Cần kiểm tra']) + '</b>' : ''}</div></div>`).join('') : '<div class="muted">Không có SKU khớp.</div>'}
     </div>
     <div class="card"><h2>Listing Shopee (${lists.length}${lists.length === 80 ? '+' : ''})</h2>
@@ -380,12 +394,12 @@ function results() {
 function listItem(l) {
   return `<div class="item" data-list="${esc(l['Mã listing'])}">
     <div class="t">${l['Code listing'] ? '<span class="sku" style="color:var(--brand-2)">' + esc(l['Code listing']) + '</span> ' : ''}${esc(l['Tên listing'])}</div>
-    <div class="muted">${esc(l['Shop'])} · ${esc(l['Số phân loại'])} phân loại · SKU: <span class="sku">${esc(l['SKU chuẩn'])}</span> · giá ${esc(l['Giá thấp nhất'])}–${esc(l['Giá cao nhất'])} · tồn ${esc(l['Tổng tồn'])} ${statusTag(l['Trạng thái rà (app)'])}</div></div>`;
+    <div class="muted">${esc(l['Shop'])} · ${esc(l['Số phân loại'])} phân loại · SKU: <span class="sku">${esc(l['SKU chuẩn'])}</span> · giá ${khoangGia(l['Giá thấp nhất'], l['Giá cao nhất'])} · tồn ${esc(l['Tổng tồn'])} ${statusTag(l['Trạng thái rà (app)'])}</div></div>`;
 }
 function pageItem(p) {
   return `<div class="item" data-page="${esc(p['URL (handle)'])}">
     <div class="t">${p['Mã listing'] ? '<span class="sku" style="color:var(--brand-2)">' + esc(p['Mã listing']) + '</span> ' : ''}${esc(p['Tên trang'])} ${statusTag(p['Trạng thái'])} ${D.MT[p['URL (handle)']] ? '<span class="tag info">Có mô tả</span>' : ''}</div>
-    <div class="muted">${esc(p['Dòng hàng'])} · ${esc(p['Số biến thể'])} biến thể · SKU: <span class="sku">${esc(p['SKU'])}</span> · ${esc(p['Giá thấp nhất'])}–${esc(p['Giá cao nhất'])}${p['Cần duyệt'] ? ' · <b>' + esc(p['Cần duyệt']) + '</b>' : ''}</div></div>`;
+    <div class="muted">${esc(p['Dòng hàng'])} · ${esc(p['Số biến thể'])} biến thể · SKU: <span class="sku">${esc(p['SKU'])}</span> · ${khoangGia(p['Giá thấp nhất'], p['Giá cao nhất'])}${p['Cần duyệt'] ? ' · <b>' + esc(p['Cần duyệt']) + '</b>' : ''}</div></div>`;
 }
 function bindItems(root) {
   root.querySelectorAll('[data-sku]').forEach(el => el.onclick = () => openSku(el.dataset.sku));
@@ -427,7 +441,7 @@ async function openSku(sku) {
       <div class="muted">${esc(s['Dòng hàng'])} · ${esc(s['Loại lọc'])}${s['Gồm mã cũ'] ? ' · gồm mã cũ: ' + esc(s['Gồm mã cũ']) : ''}</div>
       ${s['Cần kiểm tra'] ? '<div style="margin-top:6px"><span class="tag warn">' + esc(s['Cần kiểm tra']) + '</span></div>' : ''}
       <div class="row" style="margin-top:8px">${shopCols.filter(k => s[k]).map(k => `<span class="tag info">${esc(k.replace('Listing ở ', ''))}: ${esc(s[k])}</span>`).join('')}
-      ${s['Giá thấp nhất'] ? `<span class="tag info">Giá ${esc(s['Giá thấp nhất'])}–${esc(s['Giá cao nhất'])}</span>` : ''}</div></div>
+      ${docGia(s['Giá thấp nhất']) != null || docGia(s['Giá cao nhất']) != null ? `<span class="tag info">Giá ${khoangGia(s['Giá thấp nhất'], s['Giá cao nhất'])}</span>` : ''}</div></div>
     <div class="card"><h2>Thông số SKU (file gốc)</h2><div id="skuGoc"><div class="loading">Đang đọc…</div></div></div>
     <div class="card"><h2>Đang bán ở listing nào</h2><div id="skuPl"><div class="loading">Đang đọc phân loại…</div></div></div>
     <div class="card"><h2>Trên web dự kiến (${webBt.length} biến thể)</h2>
@@ -726,7 +740,7 @@ function spTheoSku() {
     const qf = flat(SP.q);
     const rows = D.SKU.filter(x => !qf || x._k.indexOf(qf) >= 0);
     $('spres').innerHTML = `<h2>${rows.length} SKU</h2><div class="scroll"><table><tr><th>SKU</th><th>Dòng hàng</th>${cols.map(c => `<th class="num hide-m">${esc(c.replace('Listing ở ', ''))}</th>`).join('')}<th class="num">Listing</th><th class="num">Giá</th></tr>
-      ${rows.slice(0, SP.n).map(x => `<tr><td><span class="sku" data-sku="${esc(x['SKU chuẩn'])}" style="cursor:pointer">${esc(x['SKU chuẩn'])}</span> ${statusTag(x['Trạng thái'])}</td><td>${esc(x['Dòng hàng'])}</td>${cols.map(c => `<td class="num hide-m">${esc(x[c] || '—')}</td>`).join('')}<td class="num">${esc(x['Tổng listing'])}</td><td class="num">${fmt(x['Giá thấp nhất'])}–${fmt(x['Giá cao nhất'])}</td></tr>`).join('')}</table></div>` +
+      ${rows.slice(0, SP.n).map(x => `<tr><td><span class="sku" data-sku="${esc(x['SKU chuẩn'])}" style="cursor:pointer">${esc(x['SKU chuẩn'])}</span> ${statusTag(x['Trạng thái'])}</td><td>${esc(x['Dòng hàng'])}</td>${cols.map(c => `<td class="num hide-m">${esc(x[c] || '—')}</td>`).join('')}<td class="num">${esc(x['Tổng listing'])}</td><td class="num">${khoangGia(x['Giá thấp nhất'], x['Giá cao nhất'])}</td></tr>`).join('')}</table></div>` +
       (rows.length > SP.n ? `<div style="margin-top:10px"><button class="btn ghost" id="spMore">Xem thêm (${rows.length - SP.n})</button></div>` : '');
     $('spres').querySelectorAll('[data-sku]').forEach(el => el.onclick = () => openSku(el.dataset.sku));
     const m = $('spMore'); if (m) m.onclick = () => { SP.n += 200; draw(); };
