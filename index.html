@@ -332,7 +332,7 @@ function vTongQuan() {
     </div>
     <div class="muted">Đọc lúc ${esc(D.luc)}. ${esc(D.nguonDuLieu || '')}</div>`;
   document.querySelectorAll('[data-go]').forEach(el => el.onclick = () => { VIEW = el.dataset.go; render(); });
-  document.querySelectorAll('[data-goshop]').forEach(el => el.onclick = e => { e.preventDefault(); SP.sub = el.dataset.goshop; SP.n = 100; VIEW = 'sp'; render(); });
+  document.querySelectorAll('[data-goshop]').forEach(el => el.onclick = e => { e.preventDefault(); const c = spCum().find(x => x.shops.includes(el.dataset.goshop)); SP.sub = c ? c.ma : 'tq'; SP.shop = el.dataset.goshop; SP.n = 100; VIEW = 'sp'; render(); });
 }
 
 /* ============ Tra cứu ============ */
@@ -613,35 +613,56 @@ function vTiktok() {
   document.querySelectorAll('[data-ttsub]').forEach(c => c.onclick = () => { TT.sub = c.dataset.ttsub; vTiktok(); });
 }
 
-/* ============ Shopee: tab con Tổng quan / từng shop / Theo SKU ============ */
-let SP = { sub: 'tq', dong: '', q: '', n: 100 };
+/* ============ Shopee: cụm shop (Phụ kiện MLKK / robot / ô tô) → shop; Tổng quan; Theo SKU ============ */
+let SP = { sub: 'tq', shop: '', dong: '', q: '', n: 100 };
+function spCum() {
+  // cụm theo mã shop (du_lieu/nhom_shop.json) → tên shop trong dữ liệu
+  const ten = Object.fromEntries(Object.entries(D.shopMa || {}).map(([t, m]) => [m, t]));
+  const cum = (D.nhomShop || []).map(c => ({ ma: c.ma, ten: c.ten, ghiChu: c.ghi_chu || '', shops: (c.shopee || []).map(m => ten[m]).filter(Boolean) }));
+  const co = new Set(cum.flatMap(c => c.shops));
+  const le = D.shops.filter(s => !co.has(s));
+  if (le.length) cum.push({ ma: 'KHAC', ten: 'Shop khác', ghiChu: '', shops: le });
+  return cum;
+}
 function vShopee() {
   const shopMa = D.shopMa || {};
-  const cnt = s => D.LIST.filter(l => l['Shop'] === s).length;
-  const subs = [['tq', 'Tổng quan']].concat(D.shops.map(s => [s, s + (shopMa[s] ? ' · ' + shopMa[s] : '') + ' (' + cnt(s) + ')'])).concat([['sku', 'Theo SKU (' + D.SKU.length + ')']]);
+  const cnt = ss => D.LIST.filter(l => ss.includes(l['Shop'])).length;
+  const cums = spCum();
+  const cur = cums.find(c => c.ma === SP.sub);
+  const subs = [['tq', 'Tổng quan']].concat(cums.map(c => [c.ma, c.ten + ' (' + cnt(c.shops) + ')'])).concat([['sku', 'Theo SKU (' + D.SKU.length + ')']]);
   $('main').innerHTML = `
     <div class="card" style="padding-bottom:8px"><div class="row" style="gap:4px">${subs.map(([k, t]) => `<span class="chip ${SP.sub === k ? 'on' : ''}" data-spsub="${esc(k)}">${esc(t)}</span>`).join('')}</div>
+      ${cur && cur.shops.length > 1 ? `<div class="row" style="gap:4px;margin-top:6px"><span class="chip ${SP.shop ? '' : 'on'}" data-spshop="">Cả cụm</span>${cur.shops.map(s => `<span class="chip ${SP.shop === s ? 'on' : ''}" data-spshop="${esc(s)}">${esc(s)}${shopMa[s] ? ' · ' + esc(shopMa[s]) : ''} (${cnt([s])})</span>`).join('')}</div>` : ''}
       <div class="muted" style="margin-top:6px">Dữ liệu Shopee: bản xuất 27–28/09/2026. Mã listing Shopee = mã shop + số (vd LKX-0001), cấp một lần, không đổi.</div></div>
     <div id="spbody"></div>`;
-  document.querySelectorAll('[data-spsub]').forEach(c => c.onclick = () => { SP.sub = c.dataset.spsub; SP.dong = ''; SP.q = ''; SP.n = 100; vShopee(); });
-  if (SP.sub === 'tq') return spTongQuan();
+  document.querySelectorAll('[data-spsub]').forEach(c => c.onclick = () => { SP.sub = c.dataset.spsub; SP.shop = ''; SP.dong = ''; SP.q = ''; SP.n = 100; vShopee(); });
+  document.querySelectorAll('[data-spshop]').forEach(c => c.onclick = () => { SP.shop = c.dataset.spshop; SP.dong = ''; SP.n = 100; vShopee(); });
+  if (SP.sub === 'tq') return spTongQuan(cums);
   if (SP.sub === 'sku') return spTheoSku();
-  spShop(SP.sub);
+  if (!cur) { SP.sub = 'tq'; return vShopee(); }
+  if (!cur.shops.length) {
+    $('spbody').innerHTML = `<div class="card"><h2>${esc(cur.ten)}</h2><div class="muted">Chưa có shop trong cụm này.${cur.ghiChu ? ' ' + esc(cur.ghiChu) + '.' : ''}</div></div>`;
+    return;
+  }
+  spShop(SP.shop ? [SP.shop] : cur.shops);
 }
-function spTongQuan() {
+function spTongQuan(cums) {
   const shopMa = D.shopMa || {};
   const dongs = [...new Set(D.LIST.map(l => l['Dòng hàng']).filter(Boolean))];
-  const rows = D.shops.map(s => { const ls = D.LIST.filter(l => l['Shop'] === s);
-    return { s, n: ls.length, pl: ls.reduce((a, l) => a + num(l['Số phân loại']), 0), ton: ls.reduce((a, l) => a + num(l['Tổng tồn']), 0),
-      d: Object.fromEntries(dongs.map(g => [g, ls.filter(l => l['Dòng hàng'] === g).length])) }; });
-  $('spbody').innerHTML = `<div class="card"><h2>Theo shop</h2><div class="scroll"><table>
-    <tr><th>Shop</th><th>Mã</th><th class="num">Listing</th><th class="num">Phân loại</th><th class="num hide-m">Tổng tồn</th>${dongs.map(g => `<th class="num hide-m">${esc(g)}</th>`).join('')}</tr>
-    ${rows.map(r => `<tr><td><a href="#" data-spgo="${esc(r.s)}">${esc(r.s)}</a></td><td class="sku">${esc(shopMa[r.s] || '')}</td><td class="num">${fmt(r.n)}</td><td class="num">${fmt(r.pl)}</td><td class="num hide-m">${fmt(r.ton)}</td>${dongs.map(g => `<td class="num hide-m">${r.d[g] ? fmt(r.d[g]) : '—'}</td>`).join('')}</tr>`).join('')}
+  const tinh = ss => { const ls = D.LIST.filter(l => ss.includes(l['Shop']));
+    return { n: ls.length, pl: ls.reduce((a, l) => a + num(l['Số phân loại']), 0), ton: ls.reduce((a, l) => a + num(l['Tổng tồn']), 0),
+      d: Object.fromEntries(dongs.map(g => [g, ls.filter(l => l['Dòng hàng'] === g).length])) }; };
+  const dong = (nhan, r, dam) => `<tr${dam ? ' style="background:var(--chip);font-weight:600"' : ''}><td>${nhan}</td><td class="num">${fmt(r.n)}</td><td class="num">${fmt(r.pl)}</td><td class="num hide-m">${fmt(r.ton)}</td>${dongs.map(g => `<td class="num hide-m">${r.d[g] ? fmt(r.d[g]) : '—'}</td>`).join('')}</tr>`;
+  $('spbody').innerHTML = `<div class="card"><h2>Theo cụm và shop</h2><div class="scroll"><table>
+    <tr><th>Cụm / shop</th><th class="num">Listing</th><th class="num">Phân loại</th><th class="num hide-m">Tổng tồn</th>${dongs.map(g => `<th class="num hide-m">${esc(g)}</th>`).join('')}</tr>
+    ${cums.map(c => dong(`<a href="#" data-spgo="${esc(c.ma)}|">${esc(c.ten)}</a>`, tinh(c.shops), true) +
+      (c.shops.length ? c.shops.map(s => dong(`&nbsp;&nbsp;<a href="#" data-spgo="${esc(c.ma)}|${esc(s)}">${esc(s)}</a> <span class="sku">${esc(shopMa[s] || '')}</span>`, tinh([s]))).join('')
+        : `<tr><td colspan="${4 + dongs.length}" class="muted">&nbsp;&nbsp;Chưa có shop${c.ghiChu ? ' — ' + esc(c.ghiChu) : ''}</td></tr>`)).join('')}
   </table></div></div>`;
-  document.querySelectorAll('[data-spgo]').forEach(a => a.onclick = e => { e.preventDefault(); SP.sub = a.dataset.spgo; vShopee(); });
+  document.querySelectorAll('[data-spgo]').forEach(a => a.onclick = e => { e.preventDefault(); const [c, s] = a.dataset.spgo.split('|'); SP.sub = c; SP.shop = s; vShopee(); });
 }
-function spShop(shop) {
-  const ls = D.LIST.filter(l => l['Shop'] === shop);
+function spShop(shops) {
+  const ls = D.LIST.filter(l => shops.includes(l['Shop']));
   const dongs = [...new Set(ls.map(l => l['Dòng hàng']).filter(Boolean))];
   $('spbody').innerHTML = `<div class="card">
       <div class="row"><input id="spq" class="search" type="search" placeholder="Lọc: mã listing, tên, SKU" value="${esc(SP.q)}"></div>
@@ -656,7 +677,7 @@ function spShop(shop) {
     const m = $('spMore'); if (m) m.onclick = () => { SP.n += 200; draw(); };
   };
   $('spq').oninput = () => { SP.q = $('spq').value; SP.n = 100; clearTimeout(spShop.h); spShop.h = setTimeout(draw, 150); };
-  document.querySelectorAll('[data-spdong]').forEach(c => c.onclick = () => { SP.dong = c.dataset.spdong; SP.n = 100; spShop(shop); });
+  document.querySelectorAll('[data-spdong]').forEach(c => c.onclick = () => { SP.dong = c.dataset.spdong; SP.n = 100; spShop(shops); });
   draw();
 }
 function spTheoSku() {
