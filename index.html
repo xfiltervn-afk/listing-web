@@ -15,18 +15,27 @@
 <link rel="icon" type="image/png" href="favicon.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <script>
-// Thay google.script.run: gọi Apps Script bằng POST, không gửi cookie Google
+// Thay google.script.run: gọi server Master Listing (POST JSON, token trong header Authorization; không dùng cookie)
 (function () {
-  const API = 'https://script.google.com/macros/s/AKfycbyP5oW69-jAF3eTc8AxogX1YFHUruLPxTANOaQ-hblF4ZWoKY7UjqQgDjKGa-wiFHDsWA/exec';
+  const API = 'https://listing-api.xfilter.com.vn';
+  const RIENG = { trangThaiMatKhau: a => ['/api/trang-thai', {}, ''],
+    taoTaiKhoanDau: a => ['/api/tao-tai-khoan-dau', { ten: a[0], mat_khau: a[1], ma: a[2] }, ''],
+    login: a => ['/api/dang-nhap', { ten: a[0], mat_khau: a[1] }, ''],
+    logout: a => ['/api/dang-xuat', {}, a[0]],
+    doiMatKhau: a => ['/api/doi-mat-khau', { cu: a[1], moi: a[2] }, a[0]] };
+  function goi(fn, args) {
+    const [path, body, token] = RIENG[fn] ? RIENG[fn](args) : ['/api', { fn, args }, args[0]];
+    const h = { 'Content-Type': 'application/json' };
+    if (token) h.Authorization = 'Bearer ' + token;
+    return fetch(API + path, { method: 'POST', credentials: 'omit', headers: h, body: JSON.stringify(body) })
+      .then(r => { if (!r.ok) throw new Error('Máy chủ trả lỗi ' + r.status); return r.json(); });
+  }
   function mk(ok, bad) {
     return new Proxy({}, { get(_, fn) {
       if (fn === 'withSuccessHandler') return f => mk(f, bad);
       if (fn === 'withFailureHandler') return f => mk(ok, f);
-      return (...args) => fetch(API, { method: 'POST', credentials: 'omit', redirect: 'follow',
-          headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ fn, args }) })
-        .then(r => { if (!r.ok) throw new Error('Máy chủ trả lỗi ' + r.status); return r.json(); })
-        .then(j => j.ok ? ok && ok(j.res) : bad && bad(new Error(j.err)),
-              e => bad && bad(new Error('Không kết nối được máy chủ (' + e.message + '). Thử tải lại trang.')));
+      return (...args) => goi(fn, args).then(j => j.ok ? ok && ok(j.res) : bad && bad(new Error(j.err)),
+        e => bad && bad(new Error('Không kết nối được máy chủ Master Listing (' + e.message + '). Máy Mac mini có đang bật không?')));
     } });
   }
   window.google = { script: { run: mk() } };
@@ -123,8 +132,10 @@
   <div class="box">
     <div style="font-weight:800;letter-spacing:.12em;color:var(--brand)">MASTER LISTING</div>
     <div class="muted" style="margin-bottom:14px">XFILTER · SKU và listing đa kênh</div>
+    <input id="ten" type="text" placeholder="Tên đăng nhập" autocomplete="username">
     <div id="loginNew" class="hidden">
-      <div class="muted">Lần đầu mở app: đặt mật khẩu Admin (6–32 ký tự).</div>
+      <div class="muted">Lần đầu mở app: tạo tài khoản Admin (mật khẩu 8–64 ký tự). Mã khởi tạo nằm trong file <b>MASTER_LISTING/du_lieu/MA_KHOI_TAO.txt</b> trên Mac mini.</div>
+      <input id="maKt" type="text" placeholder="Mã khởi tạo (vd ABCD-1234-EF56)" autocomplete="off">
       <input id="pwNew1" type="password" placeholder="Mật khẩu mới" autocomplete="new-password">
       <input id="pwNew2" type="password" placeholder="Nhập lại mật khẩu" autocomplete="new-password">
     </div>
@@ -178,7 +189,7 @@ function objs(t) { return (t && t.r ? t.r : []).map(r => { const o = {}; t.h.for
 const ids = s => (String(s || '').match(/\d{6,}/g) || []);
 
 let TOKEN = '';
-try { TOKEN = sessionStorage.getItem('ml_token') || ''; } catch (e) {}
+try { TOKEN = localStorage.getItem('ml_token') || ''; } catch (e) {}   // phiên 30 ngày (server giữ hạn)
 let D = null;          // dữ liệu khởi động
 let VIEW = 'tq';
 
@@ -193,8 +204,9 @@ async function showLogin() {
   } catch (e) { $('loginErr').textContent = e.message; }
   $('loginNew').classList.toggle('hidden', !firstTime);
   $('loginOld').classList.toggle('hidden', firstTime);
-  $('loginBtn').textContent = firstTime ? 'Đặt mật khẩu và vào app' : 'Đăng nhập';
-  (firstTime ? $('pwNew1') : $('pw')).focus();
+  $('loginBtn').textContent = firstTime ? 'Tạo tài khoản và vào app' : 'Đăng nhập';
+  try { if (!$('ten').value) $('ten').value = localStorage.getItem('ml_ten') || ''; } catch (e) {}
+  ($('ten').value ? (firstTime ? $('pwNew1') : $('pw')) : $('ten')).focus();
 }
 async function doLogin() {
   const btn = $('loginBtn'); btn.disabled = true; $('loginErr').textContent = '';
@@ -202,15 +214,15 @@ async function doLogin() {
     let r;
     if (firstTime) {
       if ($('pwNew1').value !== $('pwNew2').value) throw new Error('Hai lần nhập mật khẩu không khớp.');
-      r = await call('datMatKhauDau', $('pwNew1').value);
-    } else r = await call('login', $('pw').value);
-    TOKEN = r.token; try { sessionStorage.setItem('ml_token', TOKEN); } catch (e) {}
+      r = await call('taoTaiKhoanDau', $('ten').value, $('pwNew1').value, $('maKt').value);
+    } else r = await call('login', $('ten').value, $('pw').value);
+    TOKEN = r.token; try { localStorage.setItem('ml_token', TOKEN); localStorage.setItem('ml_ten', r.ten || $('ten').value); } catch (e) {}
     $('pw').value = $('pwNew1').value = $('pwNew2').value = '';
     start();
   } catch (e) { $('loginErr').textContent = e.message; }
   btn.disabled = false;
 }
-function logoutLocal() { TOKEN = ''; try { sessionStorage.removeItem('ml_token'); } catch (e) {} showLogin(); }
+function logoutLocal() { TOKEN = ''; try { localStorage.removeItem('ml_token'); } catch (e) {} showLogin(); }
 $('loginBtn').onclick = doLogin;
 ['pw', 'pwNew2'].forEach(id => $(id).addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); }));
 $('outBtn').onclick = () => { call('logout', TOKEN).catch(() => {}); logoutLocal(); };
@@ -248,7 +260,7 @@ function prep() {
   D.CAN_MA = objs(D.canMa); D.CHO = objs(D.cho); D.MOTA = objs(D.mota); D.CH = objs(D.cauHoi);
   D.MT = {}; objs(D.moTaWeb).forEach(m => D.MT[m['URL (handle)']] = m);
   D.SKU.forEach(s => s._k = flat(s['SKU chuẩn'] + ' ' + s['Gồm mã cũ']));
-  D.LIST.forEach(l => l._k = norm(l['Tên listing'] + ' ' + l['SKU chuẩn'] + ' ' + l['Mã listing'] + ' ' + l['Shop']));
+  D.LIST.forEach(l => l._k = norm(l['Tên listing'] + ' ' + l['SKU chuẩn'] + ' ' + l['Mã listing'] + ' ' + l['Shop'] + ' ' + (l['Code listing'] || '')));
   D.TRANG.forEach(p => p._k = norm(p['Tên trang'] + ' ' + p['Hãng xe'] + ' ' + p['Dòng xe'] + ' ' + p['SKU'] + ' ' + p['URL (handle)'] + ' ' + (p['Mã listing'] || '')));
   D.shops = [...new Set(D.LIST.map(l => l['Shop']).filter(Boolean))];
 }
@@ -314,11 +326,11 @@ function vTongQuan() {
     </div>
     <div class="card"><h2>Việc chờ duyệt</h2>
       <div>Câu hỏi chưa trả lời: <b>${p.ch}</b> · Phân loại chờ duyệt: <b>${p.cho}</b> · Phân loại cần mã: <b>${p.ma}</b></div>
-      <div class="muted" style="margin-top:6px">Quyết định lưu ở tab QUYET_DINH của Sheet. Claude đọc lại khi dựng đợt sau; app không tự đổi Shopee hay web Xfilter.vn.</div>
+      <div class="muted" style="margin-top:6px">Quyết định lưu trong cơ sở dữ liệu Master Listing (có bản sao ở Google Sheet). Claude đọc lại khi dựng đợt sau; app không tự đổi Shopee hay web Xfilter.vn.</div>
     </div>
-    <div class="muted">Đọc từ Sheet lúc ${esc(D.luc)}. Dữ liệu Shopee là bản xuất đã nhập vào Sheet; muốn số mới thì xuất lại rồi nhập đè tab.</div>`;
+    <div class="muted">Đọc lúc ${esc(D.luc)}. ${esc(D.nguonDuLieu || '')}</div>`;
   document.querySelectorAll('[data-go]').forEach(el => el.onclick = () => { VIEW = el.dataset.go; render(); });
-  document.querySelectorAll('[data-goshop]').forEach(el => el.onclick = e => { e.preventDefault(); SP.shop = el.dataset.goshop; SP.n = 100; VIEW = 'sp'; render(); });
+  document.querySelectorAll('[data-goshop]').forEach(el => el.onclick = e => { e.preventDefault(); SP.sub = el.dataset.goshop; SP.n = 100; VIEW = 'sp'; render(); });
 }
 
 /* ============ Tra cứu ============ */
@@ -365,7 +377,7 @@ function results() {
 }
 function listItem(l) {
   return `<div class="item" data-list="${esc(l['Mã listing'])}">
-    <div class="t">${esc(l['Tên listing'])}</div>
+    <div class="t">${l['Code listing'] ? '<span class="sku" style="color:var(--brand-2)">' + esc(l['Code listing']) + '</span> ' : ''}${esc(l['Tên listing'])}</div>
     <div class="muted">${esc(l['Shop'])} · ${esc(l['Số phân loại'])} phân loại · SKU: <span class="sku">${esc(l['SKU chuẩn'])}</span> · giá ${esc(l['Giá thấp nhất'])}–${esc(l['Giá cao nhất'])} · tồn ${esc(l['Tổng tồn'])} ${statusTag(l['Trạng thái rà (app)'])}</div></div>`;
 }
 function pageItem(p) {
@@ -454,7 +466,7 @@ async function openSku(sku) {
 }
 async function openListing(id) {
   const l = D.LIST.find(x => String(x['Mã listing']) === String(id)) || {};
-  openPanel('Listing ' + id, `
+  openPanel((l['Code listing'] ? l['Code listing'] + ' · ' : '') + 'Item ID ' + id, `
     <div class="card"><div class="t" style="font-weight:700">${esc(l['Tên listing'] || id)}</div>
       <div class="muted">${esc(l['Shop'])} · ${esc(l['Dòng hàng'])} · ${esc(l['Số phân loại'])} phân loại · tồn ${esc(l['Tổng tồn'])} ${statusTag(l['Trạng thái rà (app)'])}</div>
       <div style="margin-top:6px">${links(l['Shop'], id)}</div></div>
@@ -536,30 +548,65 @@ async function showMoTa(handle) {
   } catch (e) { const box = $('mtBox'); if (box) box.innerHTML = '<div class="err" style="padding:10px">' + esc(e.message) + '</div>'; }
 }
 
-/* ============ Shopee: lướt listing theo shop ============ */
-let SP = { shop: '', dong: '', q: '', n: 100 };
+/* ============ Shopee: tab con Tổng quan / từng shop / Theo SKU ============ */
+let SP = { sub: 'tq', dong: '', q: '', n: 100 };
 function vShopee() {
-  const dongs = [...new Set(D.LIST.map(l => l['Dòng hàng']).filter(Boolean))];
+  const shopMa = D.shopMa || {};
   const cnt = s => D.LIST.filter(l => l['Shop'] === s).length;
+  const subs = [['tq', 'Tổng quan']].concat(D.shops.map(s => [s, s + (shopMa[s] ? ' · ' + shopMa[s] : '') + ' (' + cnt(s) + ')'])).concat([['sku', 'Theo SKU (' + D.SKU.length + ')']]);
   $('main').innerHTML = `
-    <div class="card">
-      <div class="row"><input id="spq" class="search" type="search" placeholder="Lọc trong danh sách: tên listing, SKU, mã listing" value="${esc(SP.q)}"></div>
-      <div style="margin-top:8px"><span class="chip ${SP.shop ? '' : 'on'}" data-spshop="">Tất cả shop (${D.LIST.length})</span>${D.shops.map(s => `<span class="chip ${SP.shop === s ? 'on' : ''}" data-spshop="${esc(s)}">${esc(s)} (${cnt(s)})</span>`).join('')}</div>
-      <div><span class="chip ${SP.dong ? '' : 'on'}" data-spdong="">Mọi dòng hàng</span>${dongs.map(s => `<span class="chip ${SP.dong === s ? 'on' : ''}" data-spdong="${esc(s)}">${esc(s)}</span>`).join('')}</div>
-      <div class="muted" style="margin-top:6px">Dữ liệu Shopee là bản xuất đã nạp vào Sheet (27–28/09/2026). Bấm một listing để xem phân loại, SKU, link Shopee và link sửa.</div>
-    </div>
-    <div class="card" id="spres"></div>`;
+    <div class="card" style="padding-bottom:8px"><div class="row" style="gap:4px">${subs.map(([k, t]) => `<span class="chip ${SP.sub === k ? 'on' : ''}" data-spsub="${esc(k)}">${esc(t)}</span>`).join('')}</div>
+      <div class="muted" style="margin-top:6px">Dữ liệu Shopee: bản xuất 27–28/09/2026. Mã listing Shopee = mã shop + số (vd LKX-0001), cấp một lần, không đổi.</div></div>
+    <div id="spbody"></div>`;
+  document.querySelectorAll('[data-spsub]').forEach(c => c.onclick = () => { SP.sub = c.dataset.spsub; SP.dong = ''; SP.q = ''; SP.n = 100; vShopee(); });
+  if (SP.sub === 'tq') return spTongQuan();
+  if (SP.sub === 'sku') return spTheoSku();
+  spShop(SP.sub);
+}
+function spTongQuan() {
+  const shopMa = D.shopMa || {};
+  const dongs = [...new Set(D.LIST.map(l => l['Dòng hàng']).filter(Boolean))];
+  const rows = D.shops.map(s => { const ls = D.LIST.filter(l => l['Shop'] === s);
+    return { s, n: ls.length, pl: ls.reduce((a, l) => a + num(l['Số phân loại']), 0), ton: ls.reduce((a, l) => a + num(l['Tổng tồn']), 0),
+      d: Object.fromEntries(dongs.map(g => [g, ls.filter(l => l['Dòng hàng'] === g).length])) }; });
+  $('spbody').innerHTML = `<div class="card"><h2>Theo shop</h2><div class="scroll"><table>
+    <tr><th>Shop</th><th>Mã</th><th class="num">Listing</th><th class="num">Phân loại</th><th class="num hide-m">Tổng tồn</th>${dongs.map(g => `<th class="num hide-m">${esc(g)}</th>`).join('')}</tr>
+    ${rows.map(r => `<tr><td><a href="#" data-spgo="${esc(r.s)}">${esc(r.s)}</a></td><td class="sku">${esc(shopMa[r.s] || '')}</td><td class="num">${fmt(r.n)}</td><td class="num">${fmt(r.pl)}</td><td class="num hide-m">${fmt(r.ton)}</td>${dongs.map(g => `<td class="num hide-m">${r.d[g] ? fmt(r.d[g]) : '—'}</td>`).join('')}</tr>`).join('')}
+  </table></div></div>`;
+  document.querySelectorAll('[data-spgo]').forEach(a => a.onclick = e => { e.preventDefault(); SP.sub = a.dataset.spgo; vShopee(); });
+}
+function spShop(shop) {
+  const ls = D.LIST.filter(l => l['Shop'] === shop);
+  const dongs = [...new Set(ls.map(l => l['Dòng hàng']).filter(Boolean))];
+  $('spbody').innerHTML = `<div class="card">
+      <div class="row"><input id="spq" class="search" type="search" placeholder="Lọc: mã listing, tên, SKU" value="${esc(SP.q)}"></div>
+      <div style="margin-top:8px"><span class="chip ${SP.dong ? '' : 'on'}" data-spdong="">Mọi dòng hàng</span>${dongs.map(g => `<span class="chip ${SP.dong === g ? 'on' : ''}" data-spdong="${esc(g)}">${esc(g)} (${ls.filter(l => l['Dòng hàng'] === g).length})</span>`).join('')}</div>
+    </div><div class="card" id="spres"></div>`;
   const draw = () => {
     const words = norm(SP.q).split(' ').filter(Boolean);
-    const rows = D.LIST.filter(l => (!SP.shop || l['Shop'] === SP.shop) && (!SP.dong || l['Dòng hàng'] === SP.dong) && words.every(w => l._k.indexOf(w) >= 0));
+    const rows = ls.filter(l => (!SP.dong || l['Dòng hàng'] === SP.dong) && words.every(w => l._k.indexOf(w) >= 0));
     $('spres').innerHTML = `<h2>${rows.length} listing</h2>` + (rows.length ? rows.slice(0, SP.n).map(listItem).join('') : '<div class="muted">Không có listing khớp.</div>') +
       (rows.length > SP.n ? `<div style="margin-top:10px"><button class="btn ghost" id="spMore">Xem thêm (${rows.length - SP.n} listing)</button></div>` : '');
     bindItems($('spres'));
     const m = $('spMore'); if (m) m.onclick = () => { SP.n += 200; draw(); };
   };
-  $('spq').oninput = () => { SP.q = $('spq').value; SP.n = 100; clearTimeout(vShopee.h); vShopee.h = setTimeout(draw, 150); };
-  document.querySelectorAll('[data-spshop]').forEach(c => c.onclick = () => { SP.shop = c.dataset.spshop; SP.n = 100; vShopee(); });
-  document.querySelectorAll('[data-spdong]').forEach(c => c.onclick = () => { SP.dong = c.dataset.spdong; SP.n = 100; vShopee(); });
+  $('spq').oninput = () => { SP.q = $('spq').value; SP.n = 100; clearTimeout(spShop.h); spShop.h = setTimeout(draw, 150); };
+  document.querySelectorAll('[data-spdong]').forEach(c => c.onclick = () => { SP.dong = c.dataset.spdong; SP.n = 100; spShop(shop); });
+  draw();
+}
+function spTheoSku() {
+  const cols = Object.keys(D.SKU[0] || {}).filter(k => /^Listing ở /.test(k));
+  $('spbody').innerHTML = `<div class="card"><div class="row"><input id="spq" class="search" type="search" placeholder="Lọc SKU (TO01, ETO01, CF8116…)" value="${esc(SP.q)}"></div></div><div class="card" id="spres"></div>`;
+  const draw = () => {
+    const qf = flat(SP.q);
+    const rows = D.SKU.filter(x => !qf || x._k.indexOf(qf) >= 0);
+    $('spres').innerHTML = `<h2>${rows.length} SKU</h2><div class="scroll"><table><tr><th>SKU</th><th>Dòng hàng</th>${cols.map(c => `<th class="num hide-m">${esc(c.replace('Listing ở ', ''))}</th>`).join('')}<th class="num">Listing</th><th class="num">Giá</th></tr>
+      ${rows.slice(0, SP.n).map(x => `<tr><td><span class="sku" data-sku="${esc(x['SKU chuẩn'])}" style="cursor:pointer">${esc(x['SKU chuẩn'])}</span> ${statusTag(x['Trạng thái'])}</td><td>${esc(x['Dòng hàng'])}</td>${cols.map(c => `<td class="num hide-m">${esc(x[c] || '—')}</td>`).join('')}<td class="num">${esc(x['Tổng listing'])}</td><td class="num">${fmt(x['Giá thấp nhất'])}–${fmt(x['Giá cao nhất'])}</td></tr>`).join('')}</table></div>` +
+      (rows.length > SP.n ? `<div style="margin-top:10px"><button class="btn ghost" id="spMore">Xem thêm (${rows.length - SP.n})</button></div>` : '');
+    $('spres').querySelectorAll('[data-sku]').forEach(el => el.onclick = () => openSku(el.dataset.sku));
+    const m = $('spMore'); if (m) m.onclick = () => { SP.n += 200; draw(); };
+  };
+  $('spq').oninput = () => { SP.q = $('spq').value; SP.n = 100; clearTimeout(spTheoSku.h); spTheoSku.h = setTimeout(draw, 150); };
   draw();
 }
 
@@ -600,7 +647,7 @@ function vCho() {
     <div class="card"><div class="row">
       <span class="chip ${CHO.chiChua ? 'on' : ''}" id="fChua">Chưa quyết (${p.all})</span><span class="chip ${CHO.chiChua ? '' : 'on'}" id="fAll">Tất cả</span>
       <span class="sp" style="flex:1"></span><button class="btn ghost" id="addQ">+ Thêm câu hỏi / việc</button></div>
-      <div class="muted" style="margin-top:6px">Bấm lưu là ghi vào tab QUYET_DINH (có giờ, sửa lại được). Claude đọc khi làm đợt sau. Không tự đổi Shopee hay web Xfilter.vn.</div></div>
+      <div class="muted" style="margin-top:6px">Bấm lưu là ghi vào cơ sở dữ liệu (có giờ, người bấm, sửa lại được). Claude đọc khi làm đợt sau. Không tự đổi Shopee hay web Xfilter.vn.</div></div>
     <div class="card"><h2>Câu hỏi (${p.ch} chưa trả lời)</h2>
       ${Object.keys(nhom).length ? Object.keys(nhom).map(k => `<h3 style="margin-top:6px">${esc(k)}</h3>` + nhom[k].map(qCard).join('')).join('') : '<div class="muted">Không còn câu nào.</div>'}</div>
     <div class="card"><h2>Phân loại chờ duyệt (${p.cho} chưa quyết)</h2>
