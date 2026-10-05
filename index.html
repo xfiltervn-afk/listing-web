@@ -160,6 +160,7 @@
       <button data-v="sku">SKU</button>
       <button data-v="tc">Tra cứu</button>
       <button data-v="sp">Shopee</button>
+      <button data-v="tt">TikTok</button>
       <button data-v="web">Web Xfilter.vn</button>
       <button data-v="cho">Câu hỏi / việc <span class="badge hidden" id="choBadge"></span></button>
     </nav>
@@ -290,7 +291,7 @@ function render() {
   document.querySelectorAll('#nav button').forEach(b => b.classList.toggle('on', b.dataset.v === VIEW));
   const p = pending(); const bd = $('choBadge');
   bd.textContent = p.all; bd.classList.toggle('hidden', !p.all);
-  ({ tq: vTongQuan, sku: vSku, tc: vTraCuu, sp: vShopee, web: vWeb, cho: vCho })[VIEW]();
+  ({ tq: vTongQuan, sku: vSku, tc: vTraCuu, sp: vShopee, tt: vTiktok, web: vWeb, cho: vCho })[VIEW]();
   window.scrollTo(0, 0);
 }
 
@@ -596,6 +597,20 @@ async function vSku() {
   };
   $('skq').oninput = () => { SK.q = $('skq').value; SK.n = 150; clearTimeout(vSku.h); vSku.h = setTimeout(draw, 150); };
   draw();
+}
+
+/* ============ TikTok: để sẵn, CHƯA nạp dữ liệu (anh Trung 05/10/2026) ============ */
+let TT = { sub: 'tq' };
+function vTiktok() {
+  const shops = D.tiktokShops || [];
+  const subs = [['tq', 'Tổng quan']].concat(shops.map(x => [x.ma, x.ten + ' · ' + x.ma])).concat([['sku', 'Theo SKU']]);
+  $('main').innerHTML = `
+    <div class="card" style="padding-bottom:8px"><div class="row" style="gap:4px">${subs.map(([k, t]) => `<span class="chip ${TT.sub === k ? 'on' : ''}" data-ttsub="${esc(k)}">${esc(t)}</span>`).join('')}</div></div>
+    <div class="card"><h2>Chưa có dữ liệu TikTok</h2>
+      <p class="muted" style="margin:0">Tab này để sẵn. Khi nạp danh sách sản phẩm TikTok (file xuất từ TikTok Shop Seller Center hoặc API), mỗi sản phẩm sẽ có mã listing riêng theo shop
+      (${shops.map(x => esc(x.ma) + '-0001').join(', ') || 'mã shop-0001'}), xem theo shop / theo SKU giống tab Shopee.</p>
+      <p class="muted" style="margin:8px 0 0">Shop TikTok lấy từ danh mục shop dùng chung: ${shops.map(x => '<b>' + esc(x.ten) + '</b> (' + esc(x.ma) + ')').join(', ') || '—'}.</p></div>`;
+  document.querySelectorAll('[data-ttsub]').forEach(c => c.onclick = () => { TT.sub = c.dataset.ttsub; vTiktok(); });
 }
 
 /* ============ Shopee: tab con Tổng quan / từng shop / Theo SKU ============ */
