@@ -161,7 +161,7 @@
       <button data-v="tc">Tra cứu</button>
       <button data-v="sp">Shopee</button>
       <button data-v="web">Web Xfilter.vn</button>
-      <button data-v="cho">Chờ duyệt <span class="badge hidden" id="choBadge"></span></button>
+      <button data-v="cho">Câu hỏi / việc <span class="badge hidden" id="choBadge"></span></button>
     </nav>
   </header>
   <main id="main"><div class="loading">Đang đọc dữ liệu…</div></main>
@@ -313,7 +313,7 @@ function vTongQuan() {
       <div class="stat click" data-go="tc"><div class="n">${fmt(D.SKU.length)}</div><div class="l">SKU chuẩn · ${fmt(skuCheck)} cần kiểm tra</div></div>
       <div class="stat click" data-go="web"><div class="n">${fmt(P.length)}</div><div class="l">Trang web dự kiến · ${fmt(ready)} sẵn sàng</div></div>
       <div class="stat"><div class="n">${fmt(D.BT.length)}</div><div class="l">Biến thể web</div></div>
-      <div class="stat click" data-go="cho" style="${p.all ? 'border-color:#f2b632' : ''}"><div class="n">${fmt(p.all)}</div><div class="l">Việc chờ duyệt</div></div>
+      <div class="stat click" data-go="cho" style="${p.all ? 'border-color:#f2b632' : ''}"><div class="n">${fmt(p.all)}</div><div class="l">Câu hỏi / việc chưa xong</div></div>
     </div>
     <div class="card"><h2>Theo shop Shopee</h2><div class="scroll"><table>
       <tr><th>Shop</th><th class="num">Listing</th><th class="num">Phân loại</th><th class="num hide-m">Tổng tồn</th><th class="num">Chưa rà</th></tr>
@@ -325,7 +325,7 @@ function vTongQuan() {
       <span class="tag ok">Có mô tả: ${Object.keys(D.MT).length}/${P.length}</span>
       <span class="tag warn">Phân loại cần mã: ${D.CAN_MA.length}</span><span class="tag warn">Phân loại chờ duyệt: ${D.CHO.length}</span></div>
     </div>
-    <div class="card"><h2>Việc chờ duyệt</h2>
+    <div class="card"><h2>Câu hỏi / việc</h2>
       <div>Câu hỏi chưa trả lời: <b>${p.ch}</b> · Phân loại chờ duyệt: <b>${p.cho}</b> · Phân loại cần mã: <b>${p.ma}</b></div>
       <div class="muted" style="margin-top:6px">Quyết định lưu trong cơ sở dữ liệu Master Listing (có bản sao ở Google Sheet). Claude đọc lại khi dựng đợt sau; app không tự đổi Shopee hay web Xfilter.vn.</div>
     </div>
@@ -685,7 +685,7 @@ function vWeb() {
   draw();
 }
 
-/* ============ Chờ duyệt ============ */
+/* ============ Câu hỏi / việc ============ */
 let CHO = { chiChua: true };
 function vCho() {
   const p = pending();
