@@ -103,7 +103,12 @@
   #anhXem { position: fixed; inset: 0; background: rgba(10, 20, 30, .88); z-index: 50; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 16px; }
   #anhXem img { max-width: 100%; max-height: calc(100% - 70px); border-radius: 8px; background: #fff; }
   #anhXem .thanh { color: #fff; margin-top: 10px; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; justify-content: center; font-size: 14px; }
-  #anhXem a, #anhXem button { color: #fff; }
+  #anhXem a { color: #fff; }
+  #anhXem .btn.ghost { background: rgba(255, 255, 255, .14); color: #fff; border: 1px solid rgba(255, 255, 255, .55); }
+  #anhXem .btn.ghost:disabled { opacity: .35; cursor: default; }
+  .anh-o { padding: 0; font: inherit; text-align: left; width: 100%; }
+  .anh-o:focus-visible { outline: 3px solid var(--brand-2); outline-offset: 2px; }
+  .anh-nhom { font-size: 13px; font-weight: 700; margin: 10px 0 6px; color: var(--muted); }
   .item { padding: 10px 2px; border-bottom: 1px solid var(--line); cursor: pointer; }
   .item:hover { background: #f7f9fc; }
   .item:last-child { border-bottom: 0; }
@@ -211,36 +216,60 @@ const anhTag = ma => { const d = D && D.anhDem && D.anhDem[ma]; if (!d) return '
 function cardAnh(ma) {
   return ma ? `<div class="card"><h2>Ảnh & video <span class="muted" style="font-weight:400;font-size:13px">${esc(ma)}</span></h2><div id="anhBox" data-ma="${esc(ma)}"><div class="loading">Đang đọc…</div></div></div>` : '';
 }
+// Ảnh listing (Note 37, sửa theo review Codex 06/10): nhóm Đã duyệt / Nháp, bìa = file <MÃ>_01, ảnh biến thể hiện SKU,
+// ô ảnh là nút (bàn phím được), xem lớn chỉ đi qua ẢNH (video mở Drive riêng), Esc chỉ đóng lớp xem ảnh.
 async function napAnh(ma) {
   const box = () => { const b = $('anhBox'); return b && b.dataset.ma === ma ? b : null; };
   if (!ma || !box()) return;
   try {
     const r = await call('anhListing', TOKEN, ma);
     const b = box(); if (!b) return;
-    const moDrive = r.moDrive ? `<a class="btn ghost" href="${esc(r.moDrive)}" target="_blank" rel="noopener">Mở thư mục trên Drive ↗</a>` : '';
-    const chan = `<div class="muted" style="margin-top:8px">Kho: Drive xfiltertool / MASTER_LISTING${r.thuMuc ? ' / ' + esc(r.thuMuc) : ''}${r.capNhat ? ' · ảnh cập nhật lúc ' + esc(r.capNhat.replace('T', ' ').slice(0, 16)) : ''}.
-      Thêm ảnh: để vào thư mục Drive của mã này (bản chưa duyệt để trong <b>_nhap</b>), rồi chạy <b>DONG_BO_ANH.command</b>.</div>`;
+    const moDrive = r.moDrive ? `<a class="btn ghost" href="${esc(r.moDrive)}" target="_blank" rel="noopener noreferrer">${r.moDriveLaGoc ? 'Mở kho chung ↗' : 'Mở thư mục trên Drive ↗'}</a>
+      ${r.moDriveLaGoc ? `<div class="muted" style="margin-top:4px">Thư mục của mã này chưa có link Drive — trong kho chung tìm thư mục bắt đầu bằng <b>${esc(ma)}_</b>${r.thuMuc ? ' (' + esc(r.thuMuc) + ')' : ''}. Không để ảnh ở gốc kho.</div>` : ''}` : '';
+    const chan = `<div class="muted" style="margin-top:8px">Kho: Drive xfiltertool / MASTER_LISTING${r.thuMuc ? ' / ' + esc(r.thuMuc) : ''}${r.capNhat ? ' · ảnh đồng bộ lúc ' + esc(r.capNhat.replace('T', ' ').slice(0, 16)) : ''}.
+      Ảnh mới: để vào thư mục của mã (bản chưa duyệt để trong <b>_nhap</b>), rồi chạy <b>DONG_BO_ANH.command</b>. Ảnh trong kho chưa có nghĩa là đã đăng lên sàn/web.</div>`;
     if (!r.tep || !r.tep.length) { b.innerHTML = `<div class="muted">Chưa có ảnh / video cho mã này.</div><div style="margin-top:8px">${moDrive}</div>${chan}`; return; }
-    b.innerHTML = `<div class="anh-luoi">${r.tep.map((t, i) => `<div class="anh-o" data-i="${i}" title="${esc(t.ten)} · ${t.kb} KB">
-        ${t.nho ? `<img loading="lazy" alt="${esc(t.ten)}" src="${esc(anhUrl(t.nho))}">` : `<div class="video">${t.loai === 'video' ? '▶' : '?'}</div>`}
-        <div class="nhan">${t.nhap ? '<span class="tag warn">nháp</span>' : ''}${t.loai === 'video' ? ' <span class="tag info">video</span>' : ''}${!t.nhap && i === 0 && t.loai === 'anh' ? '<span class="tag info">bìa</span>' : ''}</div>
-        <div class="ten">${esc(t.ten)}</div></div>`).join('')}</div>
-      <div style="margin-top:10px">${moDrive}</div>${chan}`;
-    b.querySelectorAll('.anh-o').forEach(el => el.onclick = () => xemAnh(r.tep, +el.dataset.i));
+    const anh = r.tep.filter(t => t.loai === 'anh' && t.vua);      // xem lớn chỉ đi qua ảnh xem được
+    const o = (t) => { const i = r.tep.indexOf(t);
+      const nhan = [t.bia ? '<span class="tag info">bìa</span>' : '', t.sku ? `<span class="tag info">SKU ${esc(t.sku)}</span>` : '',
+                    t.loai === 'video' ? '<span class="tag info">video</span>' : '', t.nhap ? '<span class="tag warn">nháp</span>' : '',
+                    t.loi ? '<span class="tag bad">lỗi</span>' : ''].join(' ');
+      return `<button type="button" class="anh-o" data-i="${i}" title="${esc(t.ten)} · ${t.kb} KB${t.loi ? ' · ' + esc(t.loi) : ''}">
+        ${t.nho ? `<img loading="lazy" alt="${esc(t.ten)}" src="${esc(anhUrl(t.nho))}" referrerpolicy="no-referrer">` : `<div class="video">${t.loai === 'video' ? '▶' : '!'}</div>`}
+        <div class="nhan">${nhan}</div><div class="ten">${esc(t.ten)}</div></button>`; };
+    const duyet = r.tep.filter(t => !t.nhap), nhap = r.tep.filter(t => t.nhap);
+    b.innerHTML = (r.coBia ? '' : '<div style="margin-bottom:6px"><span class="tag warn">Chưa có ảnh bìa (file ' + esc(ma) + '_01)</span></div>') +
+      (duyet.length ? `<div class="anh-nhom">Đã duyệt (${duyet.length})</div><div class="anh-luoi">${duyet.map(o).join('')}</div>` : '') +
+      (nhap.length ? `<div class="anh-nhom">Nháp — chờ anh duyệt (${nhap.length})</div><div class="anh-luoi">${nhap.map(o).join('')}</div>` : '') +
+      `<div style="margin-top:10px">${moDrive}</div>${chan}`;
+    b.querySelectorAll('.anh-o').forEach(el => el.onclick = () => {
+      const t = r.tep[+el.dataset.i];
+      if (t.loai === 'video') { if (t.drive) window.open(t.drive, '_blank', 'noopener,noreferrer'); else toast('Video chưa có link Drive — chờ Drive đồng bộ lên mây rồi chạy lại đồng bộ ảnh.'); return; }
+      if (!t.vua) { toast(t.loi || 'Không đọc được ảnh này — kiểm file trong kho.'); return; }
+      xemAnh(anh, anh.indexOf(t), el);
+    });
   } catch (e) { const b = box(); if (b) b.innerHTML = '<div class="err">' + esc(e.message) + '</div>'; }
 }
-function xemAnh(ds, i) {
+function xemAnh(ds, i, quay) {
   const t = ds[i];
-  if (t.loai === 'video' || !t.vua) { if (t.drive) window.open(t.drive, '_blank', 'noopener'); else toast('Video chưa có link Drive (chờ Drive đồng bộ lên mây rồi chạy lại đồng bộ ảnh).'); return; }
+  if (!t || !t.vua) return;
   let o = $('anhXem'); if (o) o.remove();
-  o = document.createElement('div'); o.id = 'anhXem';
-  o.innerHTML = `<img alt="${esc(t.ten)}" src="${esc(anhUrl(t.vua))}"><div class="thanh">
-    <button class="btn ghost" data-b="-1">‹ Trước</button><span>${esc(t.ten)}${t.nhap ? ' · nháp' : ''} · ${i + 1}/${ds.length}</span>
-    <button class="btn ghost" data-b="1">Sau ›</button>${t.drive ? `<a href="${esc(t.drive)}" target="_blank" rel="noopener">Mở trên Drive ↗</a>` : ''}<button class="btn ghost" data-b="0">Đóng</button></div>`;
+  o = document.createElement('div'); o.id = 'anhXem'; o.setAttribute('role', 'dialog'); o.setAttribute('aria-modal', 'true');
+  o.innerHTML = `<img alt="${esc(t.ten)}" src="${esc(anhUrl(t.vua))}" referrerpolicy="no-referrer"><div class="thanh">
+    <button class="btn ghost" data-b="-1" ${i === 0 ? 'disabled' : ''}>‹ Trước</button><span>${esc(t.ten)}${t.sku ? ' · SKU ' + esc(t.sku) : ''}${t.nhap ? ' · nháp' : ''} · ${i + 1}/${ds.length}</span>
+    <button class="btn ghost" data-b="1" ${i === ds.length - 1 ? 'disabled' : ''}>Sau ›</button>${t.drive ? `<a href="${esc(t.drive)}" target="_blank" rel="noopener noreferrer">Mở trên Drive ↗</a>` : ''}<button class="btn ghost" data-b="0">Đóng</button></div>`;
   document.body.appendChild(o);
-  const di = d => { const k = i + d; if (k >= 0 && k < ds.length) xemAnh(ds, k); };
-  o.onclick = e => { const b = e.target.closest('[data-b]'); if (b) { const d = +b.dataset.b; d ? di(d) : o.remove(); } else if (e.target === o) o.remove(); };
-  document.onkeydown = e => { if (!$('anhXem')) return; if (e.key === 'Escape') o.remove(); if (e.key === 'ArrowLeft') di(-1); if (e.key === 'ArrowRight') di(1); };
+  const dong = () => { o.remove(); document.removeEventListener('keydown', phim, true); if (quay && quay.focus) quay.focus(); };
+  const di = d => { const k = i + d; if (k >= 0 && k < ds.length) { document.removeEventListener('keydown', phim, true); xemAnh(ds, k, quay); } };
+  function phim(e) {
+    if (!document.body.contains(o)) { document.removeEventListener('keydown', phim, true); return; }
+    if (e.key === 'Escape') { e.stopImmediatePropagation(); e.preventDefault(); dong(); }   // chỉ đóng lớp xem ảnh, giữ khung listing
+    else if (e.key === 'ArrowLeft') di(-1);
+    else if (e.key === 'ArrowRight') di(1);
+  }
+  document.addEventListener('keydown', phim, true);
+  o.onclick = e => { const b = e.target.closest('[data-b]'); if (b) { const d = +b.dataset.b; d ? di(d) : dong(); } else if (e.target === o) dong(); };
+  const nut = o.querySelector('[data-b="0"]'); if (nut) nut.focus();
 }
 function toast(msg) { const t = $('toast'); t.textContent = msg; t.classList.remove('hidden'); clearTimeout(toast.h); toast.h = setTimeout(() => t.classList.add('hidden'), 3500); }
 function call(fn, ...args) {
@@ -516,8 +545,8 @@ async function openSku(sku) {
         ${row('Thương hiệu', esc(g['Thương hiệu']) + (g['Nguồn thương hiệu'] ? ' <span class="muted">· ' + esc(g['Nguồn thương hiệu']) + '</span>' : ''))}
         ${row('Model máy tương thích', esc(g['Model máy tương thích']))}
         ${row('Kích thước', esc(g['Kích thước']))}
-        ${row('Giá về kho / giá bán (file KD)', esc(g['Giá về kho']) + (g['Giá bán (file)'] ? ' / ' + esc(g['Giá bán (file)']) : ''))}
-        ${row('Giá trên Shopee', esc(g['Giá Shopee thấp nhất']) + (g['Giá Shopee cao nhất'] && g['Giá Shopee cao nhất'] !== g['Giá Shopee thấp nhất'] ? '–' + esc(g['Giá Shopee cao nhất']) : ''))}
+        ${row('Giá về kho / giá bán (file KD)', (g['Giá về kho'] || g['Giá bán (file)']) ? String(g['Giá về kho'] || '').split(' / ').map(gia).join(' / ') + ' · bán ' + String(g['Giá bán (file)'] || '').split(' / ').map(gia).join(' / ') : '')}
+        ${row('Giá trên Shopee', khoangGia(g['Giá Shopee thấp nhất'], g['Giá Shopee cao nhất']))}
         ${row('Mã cũ trên Shopee', '<span class="sku">' + esc(g['Mã cũ trên Shopee']) + '</span>')}
         ${row('Mã kho (app Báo cáo)', esc(g['Mã kho (app Báo cáo)']))}
         ${row('Listing', esc(g['Số listing Shopee']) + ' listing · ' + esc(g['Shop đang bán']) + '<div class="muted">' + esc(g['Code listing']) + '</div>')}
@@ -678,7 +707,9 @@ async function vSku() {
              mck: ['_loai', 'STT gốc', 'SKU chuẩn', 'Cần kiểm tra', 'Ứng viên', 'Thương hiệu', 'Model máy', 'Cách ghép'] }[SK.sub.MLKK];
     src = { mth: SK.mlkk, mf: SK.mlkkFile, mck: can }[SK.sub.MLKK];
     const m = SK.data.mlkkMeta || {}, kd = m.nguon_kd || {};
-    const canhBao = m.cu ? 'Bảng đang là BẢN CŨ (không thấy file kinh doanh lúc cập nhật).' : m.lech ? 'Bảng dựng từ bản xuất Shopee khác bản đang nạp — chạy lại cập nhật.' : '';
+    const canhBao = [m.cu ? 'Bảng đang là BẢN CŨ' + (m.loi ? ': ' + m.loi : ' (không thấy file kinh doanh lúc cập nhật).') : '',
+                     m.lech ? 'Bảng dựng từ bản xuất Shopee khác bản đang nạp (so mã băm nội dung) — chạy lại cập nhật.' : '',
+                     (m.chon_khong_khop || []).length ? (m.chon_khong_khop.length + ' lựa chọn SKU của anh không còn khớp dòng nào (nội dung dòng trong file đã đổi) — chọn lại ở tab Cần kiểm tra.') : ''].filter(Boolean).join(' ');
     ghi = `<div class="muted" style="margin-top:6px">Nguồn: ${esc(kd.ten || 'file kinh doanh')}${kd.sua_luc ? ' (sửa ' + esc(String(kd.sua_luc).replace('T', ' ')) + ', sha ' + esc(String(kd.sha256 || '').slice(0, 10)) + ')' : ''} · Shopee: ${esc(((m.nguon_shopee || {}).ban_xuat || '').split(' · ')[0] || '—')} · dựng ${esc(String(m.ngay || '').replace('T', ' '))}</div>
       ${canhBao ? `<div style="margin-top:6px"><span class="tag bad" style="white-space:normal">${esc(canhBao)}</span></div>` : ''}
       <details style="margin-top:6px"><summary class="muted" style="cursor:pointer">Cách đọc bảng</summary><div class="muted" style="margin-top:4px">
@@ -711,7 +742,14 @@ async function vSku() {
       const v = String(o[c] == null ? '' : o[c]);
       if (c === 'SKU chuẩn') return v ? `<span class="sku" data-sku="${esc(v)}" style="cursor:pointer">${esc(v)}</span>` : '<span class="muted">chưa ghép</span>';
       if (c === 'Cần kiểm tra' || c === 'Ghi chú') return v ? `<span class="tag warn" style="white-space:normal;display:inline">${esc(v)}</span>` : '';
-      if (c === 'Ứng viên') return v ? v.split(', ').map(x => `<span class="sku" data-sku="${esc(x)}" style="cursor:pointer;margin-right:6px">${esc(x)}</span>`).join('') : '';
+      if (c === 'Ứng viên') {
+        // Anh chọn SKU ngay tại đây (Note 38 đợt 2): lưu QUYET_DINH loại MLKK_SKU theo "Mã dòng" (nội dung dòng, không theo STT)
+        const md = o['Mã dòng'], q = md ? decision('MLKK_SKU', md) : null, ap = String(o['Cách ghép'] || '').startsWith('Anh');
+        const nut = (x, nhan) => md ? ` <button type="button" class="btn ghost" data-sku-chon="${esc(x)}" data-md="${esc(md)}" data-stt="${esc(o['STT gốc'])}" style="padding:1px 7px;font-size:12px;margin:2px 6px 2px 0">${esc(nhan)}</button>` : '';
+        const ds = v ? v.split(', ').map(x => `<span class="sku" data-sku="${esc(x)}" style="cursor:pointer">${esc(x)}</span>${nut(x, 'Chọn')}`).join('') : '';
+        const da = q && !ap ? `<div><span class="tag info" style="white-space:normal">Anh đã chọn: ${esc(q.qd)} — áp ở lần cập nhật dữ liệu sau</span></div>` : '';
+        return ds + (v ? nut('KHÔNG CÓ', 'Không có SKU đúng') : '') + da;
+      }
       if (c === 'Thương hiệu' && o['Nguồn thương hiệu'] && o['Nguồn thương hiệu'] !== 'File KD') return esc(v) + (v ? ' <span class="muted">(suy)</span>' : '');
       return esc(v.length > 120 ? v.slice(0, 120) + '…' : v);
     };
@@ -719,6 +757,18 @@ async function vSku() {
       ${rows.slice(0, SK.n).map(o => `<tr>${cols.map(c => `<td>${cell(o, c)}</td>`).join('')}</tr>`).join('')}</table></div>` +
       (rows.length > SK.n ? `<div style="margin-top:10px"><button class="btn ghost" id="skMore">Xem thêm (${rows.length - SK.n})</button></div>` : '');
     $('skres').querySelectorAll('[data-sku]').forEach(el => el.onclick = () => openSku(el.dataset.sku));
+    $('skres').querySelectorAll('[data-sku-chon]').forEach(el => el.onclick = async e => {
+      e.stopPropagation();
+      const sku = el.dataset.skuChon, md = el.dataset.md;
+      if (!confirm(sku === 'KHÔNG CÓ' ? 'Xác nhận dòng STT ' + el.dataset.stt + ' chưa có SKU Shopee nào đúng?' : 'Chọn SKU ' + sku + ' cho dòng STT ' + el.dataset.stt + '?')) return;
+      el.disabled = true;
+      try {
+        const r = await call('luuQuyetDinh', TOKEN, { loai: 'MLKK_SKU', khoa: md, qd: sku, moTa: 'STT ' + el.dataset.stt });
+        D.qd['MLKK_SKU|' + md] = { qd: r.qd, ghiChu: r.ghiChu, luc: r.luc };
+        toast('Đã lưu lựa chọn. Áp vào bảng ở lần cập nhật dữ liệu sau (nhắn Claude hoặc chạy cap_nhat).');
+        draw();
+      } catch (err) { toast(err.message); el.disabled = false; }
+    });
     const m = $('skMore'); if (m) m.onclick = () => { SK.n += 300; draw(); };
   };
   $('skq').oninput = () => { SK.q[SK.cum] = $('skq').value; SK.n = 150; clearTimeout(vSku.h); vSku.h = setTimeout(draw, 150); };
@@ -812,8 +862,8 @@ function spTheoSku() {
   const draw = () => {
     const qf = flat(SP.q);
     const rows = D.SKU.filter(x => !qf || x._k.indexOf(qf) >= 0);
-    $('spres').innerHTML = `<h2>${rows.length} SKU</h2><div class="scroll"><table><tr><th>SKU</th><th>Dòng hàng</th>${cols.map(c => `<th class="num hide-m">${esc(c.replace('Listing ở ', ''))}</th>`).join('')}<th class="num">Listing</th><th class="num">Giá</th></tr>
-      ${rows.slice(0, SP.n).map(x => `<tr><td><span class="sku" data-sku="${esc(x['SKU chuẩn'])}" style="cursor:pointer">${esc(x['SKU chuẩn'])}</span> ${statusTag(x['Trạng thái'])}</td><td>${esc(x['Dòng hàng'])}</td>${cols.map(c => `<td class="num hide-m">${esc(x[c] || '—')}</td>`).join('')}<td class="num">${esc(x['Tổng listing'])}</td><td class="num">${khoangGia(x['Giá thấp nhất'], x['Giá cao nhất'])}</td></tr>`).join('')}</table></div>` +
+    $('spres').innerHTML = `<h2>${rows.length} SKU</h2><div class="scroll"><table><tr><th>SKU</th><th>Dòng hàng</th>${cols.map(c => `<th class="num hide-m">${esc(c.replace('Listing ở ', ''))}</th>`).join('')}<th class="num">Listing</th><th class="num">Giá (₫)</th></tr>
+      ${rows.slice(0, SP.n).map(x => `<tr><td><span class="sku" data-sku="${esc(x['SKU chuẩn'])}" style="cursor:pointer">${esc(x['SKU chuẩn'])}</span> ${statusTag(x['Trạng thái'])}</td><td>${esc(x['Dòng hàng'])}</td>${cols.map(c => `<td class="num hide-m">${esc(x[c] || '—')}</td>`).join('')}<td class="num">${esc(x['Tổng listing'])}</td><td class="num" style="white-space:normal;min-width:84px">${khoangGia(x['Giá thấp nhất'], x['Giá cao nhất'])}</td></tr>`).join('')}</table></div>` +
       (rows.length > SP.n ? `<div style="margin-top:10px"><button class="btn ghost" id="spMore">Xem thêm (${rows.length - SP.n})</button></div>` : '');
     $('spres').querySelectorAll('[data-sku]').forEach(el => el.onclick = () => openSku(el.dataset.sku));
     const m = $('spMore'); if (m) m.onclick = () => { SP.n += 200; draw(); };
