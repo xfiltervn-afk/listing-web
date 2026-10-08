@@ -479,6 +479,12 @@ function pageItem(p) {
     <div class="t">${p['Mã listing'] ? '<span class="sku" style="color:var(--brand-2)">' + esc(p['Mã listing']) + '</span> ' : ''}${esc(p['Tên trang'])} ${statusTag(p['Trạng thái'])} ${D.MT[p['URL (handle)']] ? '<span class="tag info">Có mô tả</span>' : ''} ${anhTag(p['Mã listing'])}</div>
     <div class="muted">${esc(p['Dòng hàng'])} · ${esc(p['Số biến thể'])} biến thể · SKU: <span class="sku">${esc(p['SKU'])}</span> · ${khoangGia(p['Giá thấp nhất'], p['Giá cao nhất'])}${p['Cần duyệt'] ? ' · <b>' + esc(p['Cần duyệt']) + '</b>' : ''}</div></div>`;
 }
+// Nguồn dữ liệu Shopee (08/10/2026): bản chụp Shopee API của xfilterapp.com/listing, trước đó là bản xuất tay 27–28/09
+function nhanShopee() {
+  const m = /API tải (\d{4})-(\d\d)-(\d\d) (\d\d:\d\d)/.exec(D.nguonShopee || '');
+  return m ? `Shopee API, tải ${m[3]}/${m[2]}/${m[1]} ${m[4]}` : 'bản xuất 27–28/09/2026';
+}
+
 function bindItems(root) {
   root.querySelectorAll('[data-sku]').forEach(el => el.onclick = () => openSku(el.dataset.sku));
   root.querySelectorAll('[data-list]').forEach(el => el.onclick = () => openListing(el.dataset.list));
@@ -595,7 +601,7 @@ async function openListing(id) {
     const box = $('lsMt'); if (!box) return;
     if (!m) { box.innerHTML = '<div class="muted">Chưa có mô tả trong dữ liệu.</div>'; return; }
     const mt = String(m['Mô tả'] || '');
-    box.innerHTML = `<div class="muted" style="margin-bottom:6px">${fmt(mt.length)} ký tự${m['SKU sản phẩm'] ? ' · SKU sản phẩm: <span class="sku">' + esc(m['SKU sản phẩm']) + '</span>' : ''}${m['Ghi chú rà'] ? ' · ghi chú: ' + esc(m['Ghi chú rà']) : ''} · bản xuất 27–28/09</div>
+    box.innerHTML = `<div class="muted" style="margin-bottom:6px">${fmt(mt.length)} ký tự${m['SKU sản phẩm'] ? ' · SKU sản phẩm: <span class="sku">' + esc(m['SKU sản phẩm']) + '</span>' : ''}${m['Ghi chú rà'] ? ' · ghi chú: ' + esc(m['Ghi chú rà']) : ''} · ${esc(nhanShopee())}</div>
       <div class="ws" style="max-height:420px;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:10px;background:#fbfcfd">${esc(mt) || '<span class="muted">(trống)</span>'}</div>`;
   }).catch(e => { const box = $('lsMt'); if (box) box.innerHTML = '<div class="err">' + esc(e.message) + '</div>'; });
   try {
@@ -678,7 +684,7 @@ async function showMoTa(handle) {
 }
 
 /* ============ SKU: chia theo cụm (anh Trung 05/10/2026) — Phụ kiện MLKK / robot / ô tô ============ */
-let SK = { cum: 'MLKK', sub: { MLKK: 'mth', OTO: 'th' }, q: { MLKK: '', OTO: '' }, n: 150, data: null };   // ô tìm riêng từng cụm
+let SK = { cum: 'MLKK', sub: { MLKK: 'mth', OTO: 'th' }, q: { MLKK: '', OTO: '', ROBOT: '' }, n: 150, data: null };   // ô tìm riêng từng cụm
 async function vSku() {
   $('main').innerHTML = '<div class="loading">Đang đọc dữ liệu SKU…</div>';
   if (!SK.data) {
@@ -686,13 +692,27 @@ async function vSku() {
     ['tongHop', 'dieuHoa', 'dongCo', 'mlkk', 'mlkkFile'].forEach(k => { SK[k] = SK.data[k] && SK.data[k].h ? objs(SK.data[k]) : []; SK[k].forEach(o => o._k = norm(Object.values(o).join(' '))); });
   }
   const cums = (SK.data.nhomShop || []).length ? SK.data.nhomShop : [{ ma: 'MLKK', ten: 'Phụ kiện MLKK' }, { ma: 'ROBOT', ten: 'Phụ kiện robot' }, { ma: 'OTO', ten: 'Phụ kiện ô tô' }];
-  const demCum = { MLKK: SK.mlkk.length, ROBOT: 0, OTO: SK.tongHop.length };
+  // Cụm robot (shop GLUNIX, 08/10/2026): chưa có file SKU gốc → SKU theo phân loại Shopee (THEO_SKU, dòng hàng robot)
+  const robot = D.SKU.filter(s => s['Dòng hàng'] === 'Phụ kiện robot hút bụi');
+  const demCum = { MLKK: SK.mlkk.length, ROBOT: robot.length, OTO: SK.tongHop.length };
   const cumChips = `<div class="row" style="gap:4px">${cums.map(c => `<span class="chip ${SK.cum === c.ma ? 'on' : ''}" data-skcum="${esc(c.ma)}">${esc(c.ten)} (${demCum[c.ma] || 0})</span>`).join('')}</div>`;
   const bindCum = () => document.querySelectorAll('[data-skcum]').forEach(c => c.onclick = () => { SK.cum = c.dataset.skcum; SK.n = 150; vSku(); });
   if (SK.cum === 'ROBOT') {
     $('main').innerHTML = `<div class="card" style="padding-bottom:8px">${cumChips}</div>
-      <div class="card"><h2>Phụ kiện robot</h2><p class="muted">Chưa có SKU. Khi có shop GLUNIX và file SKU robot, em chuẩn hoá theo cùng khuôn rồi nạp vào đây.</p></div>`;
-    bindCum(); return;
+      <div class="card"><h2>Phụ kiện robot — ${robot.length} SKU</h2>
+        <p class="muted">SKU lấy từ phân loại Shopee của shop GLUNIX, mới gộp cách viết (dấu cách, chữ hoa), chưa có file SKU gốc như cụm MLKK. Anh gửi file SKU robot thì em chuẩn hoá cùng khuôn.</p>
+        <div class="row" style="margin-top:8px"><input id="skq" class="search" type="search" placeholder="Tìm SKU, mã cũ…" value="${esc(SK.q.ROBOT || '')}"></div>
+        <div id="skrb"></div></div>`;
+    const drawRb = () => {
+      const words = norm(SK.q.ROBOT || '').split(' ').filter(Boolean);
+      const rows = robot.filter(s => words.every(w => norm(s['SKU chuẩn'] + ' ' + s['Gồm mã cũ']).indexOf(w) >= 0));
+      $('skrb').innerHTML = rows.length ? `<div class="scroll"><table><tr><th>SKU</th><th>Gồm mã cũ</th><th class="num">Listing</th><th class="num">Phân loại</th><th class="num">Giá (₫)</th></tr>
+        ${rows.slice(0, SK.n).map(s => `<tr><td><span class="item sku" style="padding:0;border:0;display:inline" data-sku="${esc(s['SKU chuẩn'])}">${esc(s['SKU chuẩn'])}</span>${s['Cần kiểm tra'] ? '<div><span class="tag warn">' + esc(s['Cần kiểm tra']) + '</span></div>' : ''}</td><td>${esc(s['Gồm mã cũ'])}</td><td class="num">${esc(s['Tổng listing'])}</td><td class="num">${esc(s['Tổng phân loại'])}</td><td class="num">${khoangGia(s['Giá thấp nhất'], s['Giá cao nhất'])}</td></tr>`).join('')}</table></div>`
+        : '<div class="muted">Không có SKU khớp.</div>';
+      bindItems($('skrb'));
+    };
+    $('skq').oninput = () => { SK.q.ROBOT = $('skq').value; clearTimeout(vSku.h); vSku.h = setTimeout(drawRb, 150); };
+    drawRb(); bindCum(); return;
   }
   let subs, cols, src, ghi;
   if (SK.cum === 'MLKK') {
@@ -809,7 +829,7 @@ function vShopee() {
   $('main').innerHTML = `
     <div class="card" style="padding-bottom:8px"><div class="row" style="gap:4px">${subs.map(([k, t]) => `<span class="chip ${SP.sub === k ? 'on' : ''}" data-spsub="${esc(k)}">${esc(t)}</span>`).join('')}</div>
       ${cur && cur.shops.length > 1 ? `<div class="row" style="gap:4px;margin-top:6px"><span class="chip ${SP.shop ? '' : 'on'}" data-spshop="">Cả cụm</span>${cur.shops.map(s => `<span class="chip ${SP.shop === s ? 'on' : ''}" data-spshop="${esc(s)}">${esc(s)}${shopMa[s] ? ' · ' + esc(shopMa[s]) : ''} (${cnt([s])})</span>`).join('')}</div>` : ''}
-      <div class="muted" style="margin-top:6px">Dữ liệu Shopee: bản xuất 27–28/09/2026. Mã listing Shopee = mã shop + số (vd LKX-0001), cấp một lần, không đổi.</div></div>
+      <div class="muted" style="margin-top:6px">Dữ liệu Shopee: ${esc(nhanShopee())}. Mã listing Shopee = mã shop + số (vd LKX-0001), cấp một lần, không đổi.</div></div>
     <div id="spbody"></div>`;
   document.querySelectorAll('[data-spsub]').forEach(c => c.onclick = () => { SP.sub = c.dataset.spsub; SP.shop = ''; SP.dong = ''; SP.q = ''; SP.n = 100; vShopee(); });
   document.querySelectorAll('[data-spshop]').forEach(c => c.onclick = () => { SP.shop = c.dataset.spshop; SP.dong = ''; SP.n = 100; vShopee(); });
