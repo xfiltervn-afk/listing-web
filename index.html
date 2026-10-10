@@ -80,7 +80,7 @@
   td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
   .scroll { overflow-x: auto; }
   .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
-  input[type=text], input[type=password], input[type=search], select, textarea {
+  input[type=text], input[type=password], input[type=search], input[type=date], select, textarea {
     border: 1px solid var(--line); border-radius: 9px; padding: 9px 11px; background: #fff; min-width: 0; }
   textarea { width: 100%; min-height: 54px; resize: vertical; }
   .search { flex: 1; min-width: 200px; font-size: 16px; }
@@ -695,8 +695,9 @@ async function vSku() {
   // Cụm robot (shop GLUNIX, 08/10/2026): chưa có file SKU gốc → SKU theo phân loại Shopee (THEO_SKU, dòng hàng robot)
   const robot = D.SKU.filter(s => s['Dòng hàng'] === 'Phụ kiện robot hút bụi');
   const demCum = { MLKK: SK.mlkk.length, ROBOT: robot.length, OTO: SK.tongHop.length };
-  const cumChips = `<div class="row" style="gap:4px">${cums.map(c => `<span class="chip ${SK.cum === c.ma ? 'on' : ''}" data-skcum="${esc(c.ma)}">${esc(c.ten)} (${demCum[c.ma] || 0})</span>`).join('')}</div>`;
+  const cumChips = `<div class="row" style="gap:4px">${cums.map(c => `<span class="chip ${SK.cum === c.ma ? 'on' : ''}" data-skcum="${esc(c.ma)}">${esc(c.ten)} (${demCum[c.ma] || 0})</span>`).join('')}<span class="chip ${SK.cum === 'GIA' ? 'on' : ''}" data-skcum="GIA">Giá về kho</span></div>`;
   const bindCum = () => document.querySelectorAll('[data-skcum]').forEach(c => c.onclick = () => { SK.cum = c.dataset.skcum; SK.n = 150; vSku(); });
+  if (SK.cum === 'GIA') return vGiaVon(cumChips, bindCum);
   if (SK.cum === 'ROBOT') {
     $('main').innerHTML = `<div class="card" style="padding-bottom:8px">${cumChips}</div>
       <div class="card"><h2>Phụ kiện robot — ${robot.length} SKU</h2>
@@ -807,6 +808,130 @@ function vTiktok() {
       (${shops.map(x => esc(x.ma) + '-0001').join(', ') || 'mã shop-0001'}), xem theo shop / theo SKU giống tab Shopee.</p>
       <p class="muted" style="margin:8px 0 0">Shop TikTok lấy từ danh mục shop dùng chung: ${shops.map(x => '<b>' + esc(x.ten) + '</b> (' + esc(x.ma) + ')').join(', ') || '—'}.</p></div>`;
   document.querySelectorAll('[data-ttsub]').forEach(c => c.onclick = () => { TT.sub = c.dataset.ttsub; vTiktok(); });
+}
+
+
+/* ============ Giá về kho theo SKU (anh Trung 10/10/2026) — giá vốn cho app Báo cáo tính lãi gộp tháng ============ */
+// Anh chốt: giá vốn = giá về kho; nhập trong app này; lưu theo ngày áp dụng ("" = từ trước tới nay). Server: webapp/server/gia_von.py
+let GV = { data: null, q: '', loc: 'tat', n: 150, mo: null, hop: '' };
+const ngayVn = t => t ? t.split('-').reverse().join('/') : 'từ trước tới nay';
+const homNayIso = () => { const n = new Date(); return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}-${String(n.getDate()).padStart(2, '0')}`; };
+const docGiaNhap = v => { const s = String(v == null ? '' : v).trim().replace(/[₫đ\s]/g, ''); if (!s) return null;
+  if (!/^(\d{1,3}([.,]\d{3})*|\d+)$/.test(s)) return NaN; const g = Number(s.replace(/[.,]/g, '')); return g > 0 && g < 1e8 ? g : NaN; };
+const docNgayNhap = v => { const s = String(v || '').trim(); if (!s) return ''; let m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s); if (m) return s;
+  m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(s); return m ? `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}` : null; };
+
+async function luuGia(ds, xong) {
+  try {
+    const r = await call('luuGiaVon', TOKEN, ds);
+    toast(`Đã lưu ${r.luu} giá${r.bo ? ', bỏ ' + r.bo + ' mốc' : ''}.`);
+    GV.data = null; GV.mo = null; GV.hop = ''; if (xong) xong(); vSku();
+  } catch (e) { toast('Chưa lưu được: ' + e.message); }
+}
+
+async function vGiaVon(cumChips, bindCum) {
+  if (!GV.data) {
+    $('main').innerHTML = `<div class="card" style="padding-bottom:8px">${cumChips}</div><div class="loading">Đang đọc giá về kho…</div>`; bindCum();
+    try { GV.data = await call('giaVon', TOKEN); } catch (e) { $('main').innerHTML = `<div class="card" style="padding-bottom:8px">${cumChips}</div><div class="card err">${esc(e.message)}</div>`; bindCum(); return; }
+  }
+  const d = GV.data, tk = d.thongKe, goiY = d.rows.filter(r => r.goiY);
+  $('main').innerHTML = `<div class="card" style="padding-bottom:8px">${cumChips}</div>
+    <div class="card"><h2>Giá về kho theo SKU</h2>
+      <p class="muted" style="margin:4px 0 8px">Giá vốn = <b>giá về kho</b> (giá nhập + phí chở về kho). Mỗi giá có <b>ngày áp dụng</b>: để trống là áp cho mọi đơn từ trước tới nay; đợt hàng mới giá khác thì thêm giá kèm ngày bắt đầu, các tháng trước vẫn tính theo giá cũ. App Báo cáo đọc giá này để tính lãi gộp từng tháng.</p>
+      <div class="row" style="gap:6px;margin-bottom:8px"><span class="tag ${tk.pct >= 95 ? 'ok' : 'warn'}">Đã có giá ${fmt(tk.coGia)}/${fmt(tk.soMa)} mã · phủ ${String(tk.pct).replace('.', ',')}% số lượng bán 90 ngày</span></div>
+      <div class="row" style="gap:6px"><input id="gvq" class="search" type="search" placeholder="Tìm SKU…" value="${esc(GV.q)}" style="flex:1;min-width:160px">
+        <button class="btn ghost" id="gvDan">Dán nhiều giá</button>${goiY.length ? `<button class="btn ghost" id="gvGy">Dùng ${fmt(goiY.length)} giá gợi ý</button>` : ''}</div>
+      <div class="row" style="gap:4px;margin-top:6px">${[['tat', 'Tất cả'], ['chua', 'Chưa có giá'], ['goiy', 'Có gợi ý'], ['co', 'Đã có giá']].map(([k, t]) => `<span class="chip ${GV.loc === k ? 'on' : ''}" data-gvloc="${k}">${t}</span>`).join('')}</div>
+      <div id="gvHop"></div><div id="gvTb" style="margin-top:8px"></div>
+      <div class="muted" style="margin-top:8px">Số lượng bán: ${esc(d.nguonBan || 'chưa đọc được sổ đơn')}. File cho app Báo cáo: <span class="sku">GIA_VON_SKU.csv</span>${d.xuat.luc ? ' (ghi lúc ' + esc(d.xuat.luc) + ')' : ''}.</div></div>`;
+  bindCum();
+  const ve = () => {
+    const words = norm(GV.q).split(' ').filter(Boolean);
+    const rows = d.rows.filter(r => (GV.loc === 'tat' || (GV.loc === 'chua' && r.gia == null) || (GV.loc === 'co' && r.gia != null) || (GV.loc === 'goiy' && r.goiY))
+      && words.every(w => norm(r.sku + ' ' + r.maCu + ' ' + r.dong).indexOf(w) >= 0));
+    $('gvTb').innerHTML = rows.length ? `<div class="muted">${fmt(rows.length)} mã${rows.length > GV.n ? ', hiện ' + GV.n + ' mã bán chạy nhất' : ''}</div><div class="scroll"><table>
+      <tr><th>SKU</th><th class="num">Đã bán 90 ngày</th><th class="num hide-m">Giá Shopee</th><th class="num">Giá về kho (₫)</th><th></th></tr>
+      ${rows.slice(0, GV.n).map(r => {
+        const i = d.rows.indexOf(r);
+        return `<tr><td><span class="sku">${esc(r.sku)}</span><div class="muted">${esc(r.dong)}${r.maCu ? ' · mã cũ ' + esc(r.maCu) : ''}</div></td>
+        <td class="num">${fmt(r.slSp + r.slTt)}${r.slTt ? `<div class="muted">TikTok ${fmt(r.slTt)}</div>` : ''}</td>
+        <td class="num hide-m">${khoangGia(r.giaShopee[0], r.giaShopee[1])}</td>
+        <td class="num">${r.gia != null ? `<b>${fmt(r.gia)}</b><div class="muted">${esc(ngayVn(r.tu))}${r.moc.length > 1 ? ' · ' + r.moc.length + ' mốc' : ''}</div>` : '<span class="muted">chưa có</span>'}
+          ${r.goiY ? `<div><span class="tag info" title="${esc(r.goiY.nguon)}">gợi ý ${fmt(r.goiY.gia)}</span></div>` : ''}</td>
+        <td><button class="btn ghost" data-gvsua="${i}" style="padding:4px 10px">${r.gia != null ? 'Sửa' : 'Nhập'}</button></td></tr>
+        ${GV.mo === i ? `<tr><td colspan="5">${hopSua(r)}</td></tr>` : ''}`; }).join('')}</table></div>
+      ${rows.length > GV.n ? '<button class="btn ghost" id="gvThem" style="margin-top:8px">Hiện thêm</button>' : ''}` : '<div class="muted">Không có mã khớp.</div>';
+    document.querySelectorAll('[data-gvsua]').forEach(b => b.onclick = () => { const i = +b.dataset.gvsua; GV.mo = GV.mo === i ? null : i; ve(); });
+    if ($('gvThem')) $('gvThem').onclick = () => { GV.n += 150; ve(); };
+    if (GV.mo != null && $('gvLuu')) {
+      const r = d.rows[GV.mo];
+      $('gvTruoc').onchange = () => { $('gvNgay').disabled = $('gvTruoc').checked; };
+      $('gvLuu').onclick = () => {
+        const g = docGiaNhap($('gvGia').value);
+        if (g == null || Number.isNaN(g)) { toast('Ghi giá về kho, vd 148000 hoặc 148.000'); return; }
+        const tu = $('gvTruoc').checked ? '' : docNgayNhap($('gvNgay').value);
+        if (tu == null || (!$('gvTruoc').checked && !tu)) { toast('Chọn ngày áp dụng, hoặc tích "Từ trước tới nay"'); return; }
+        luuGia([{ sku: r.sku, gia: g, tuNgay: tu, ghiChu: $('gvGc').value }]);
+      };
+      $('gvHuy').onclick = () => { GV.mo = null; ve(); };
+      document.querySelectorAll('[data-gvbo]').forEach(b => b.onclick = () => {
+        if (confirm(`Bỏ mốc giá ${b.dataset.gvgia} ₫ (${ngayVn(b.dataset.gvbo)}) của ${r.sku}? Lịch sử vẫn được giữ.`)) luuGia([{ sku: r.sku, gia: '', tuNgay: b.dataset.gvbo, ghiChu: 'bỏ mốc' }]);
+      });
+    }
+  };
+  function hopSua(r) {
+    const dau = r.moc.length === 0;
+    return `<div class="card" style="margin:0;background:var(--chip);position:sticky;left:0;max-width:calc(100vw - 56px);box-sizing:border-box">
+      <div class="row" style="gap:8px;align-items:flex-end;flex-wrap:wrap">
+        <label>Giá về kho (₫)<br><input id="gvGia" type="text" inputmode="numeric" placeholder="vd 148.000" value="${r.goiY && dau ? esc(fmt(r.goiY.gia)) : ''}" style="width:130px"></label>
+        <label>Áp dụng từ<br><input id="gvNgay" type="date" ${dau ? 'disabled' : ''} value="${dau ? '' : homNayIso()}"></label>
+        <label style="padding-bottom:10px"><input id="gvTruoc" type="checkbox" ${dau ? 'checked' : ''}> Từ trước tới nay</label>
+        <label style="flex:1;min-width:140px">Ghi chú<br><input id="gvGc" type="text" placeholder="vd lô 10/2026, NCC…" style="width:100%"></label></div>
+      ${r.goiY && dau ? `<div class="muted" style="margin-top:6px">Đã điền sẵn giá gợi ý (${esc(r.goiY.nguon)}) — sửa lại nếu khác.</div>` : ''}
+      <div class="row" style="gap:6px;margin-top:8px"><button class="btn" id="gvLuu">Lưu</button><button class="btn ghost" id="gvHuy">Huỷ</button></div>
+      ${r.moc.length ? `<div style="margin-top:10px"><b>Các mốc giá</b>${r.moc.map(m => `<div class="row" style="gap:8px;margin-top:4px"><span>${esc(ngayVn(m.tu))}: <b>${fmt(m.gia)} ₫</b></span><span class="muted">${esc(m.nguoi)} · ${esc(m.luc)}${m.ghiChu ? ' · ' + esc(m.ghiChu) : ''}</span><button class="btn ghost" data-gvbo="${esc(m.tu)}" data-gvgia="${esc(fmt(m.gia))}" style="padding:2px 8px">Bỏ mốc</button></div>`).join('')}</div>` : ''}</div>`;
+  }
+  // Dán nhiều giá: mỗi dòng "SKU <Tab> giá [<Tab> áp dụng từ]" — chép thẳng từ Excel/Numbers
+  const hopDan = () => {
+    $('gvHop').innerHTML = `<div class="card" style="margin:8px 0 0;background:var(--chip)"><b>Dán nhiều giá</b>
+      <div class="muted">Mỗi dòng: SKU, giá về kho, (ngày áp dụng — bỏ trống = từ trước tới nay), cách nhau bằng Tab hoặc dấu ;. Chép 2–3 cột từ Excel/Numbers rồi dán vào đây.</div>
+      <textarea id="gvTxt" style="min-height:110px;margin-top:6px" placeholder="4 LITE&#9;95000&#10;GEN 4&#9;102.000&#9;01/10/2026"></textarea>
+      <div class="row" style="gap:6px;margin-top:6px"><button class="btn ghost" id="gvXem">Xem trước</button><button class="btn ghost" id="gvDong">Đóng</button></div><div id="gvXt"></div></div>`;
+    $('gvDong').onclick = () => { GV.hop = ''; $('gvHop').innerHTML = ''; };
+    $('gvXem').onclick = () => {
+      const biet = new Set(d.rows.map(r => r.sku.toUpperCase().replace(/\s+/g, ' ')));
+      const ds = $('gvTxt').value.split(/\r?\n/).map(l => l.trim()).filter(Boolean).map(l => {
+        const c = l.split(/\t|;/).map(x => x.trim()); const g = docGiaNhap(c[1]); const tu = docNgayNhap(c[2] || '');
+        return { sku: c[0], gia: g, tuNgay: tu, ok: c[0] && g != null && !Number.isNaN(g) && tu != null, moi: !biet.has(String(c[0]).toUpperCase().replace(/\s+/g, ' ')) };
+      });
+      const tot = ds.filter(x => x.ok);
+      $('gvXt').innerHTML = `<div class="scroll" style="margin-top:6px"><table><tr><th>SKU</th><th class="num">Giá</th><th>Áp dụng từ</th><th></th></tr>
+        ${ds.map(x => `<tr><td><span class="sku">${esc(x.sku)}</span></td><td class="num">${x.gia && !Number.isNaN(x.gia) ? fmt(x.gia) : '<span class="tag warn">giá sai</span>'}</td><td>${x.tuNgay == null ? '<span class="tag warn">ngày sai</span>' : esc(ngayVn(x.tuNgay))}</td><td>${x.ok && x.moi ? '<span class="tag warn">mã chưa có trong danh sách</span>' : ''}</td></tr>`).join('')}</table></div>
+        <button class="btn" id="gvLuuDan" style="margin-top:6px" ${tot.length && tot.length === ds.length ? '' : 'disabled'}>Lưu ${tot.length} giá</button>
+        ${tot.length !== ds.length ? '<div class="muted">Sửa các dòng báo sai rồi bấm Xem trước lại.</div>' : ''}`;
+      if ($('gvLuuDan')) $('gvLuuDan').onclick = () => luuGia(tot.map(x => ({ sku: x.sku, gia: x.gia, tuNgay: x.tuNgay, ghiChu: 'dán từ bảng' })));
+    };
+  };
+  const hopGoiY = () => {
+    $('gvHop').innerHTML = `<div class="card" style="margin:8px 0 0;background:var(--chip)"><b>${fmt(goiY.length)} giá gợi ý</b> cho mã chưa có giá — áp dụng <b>từ trước tới nay</b>.
+      <div class="muted">Nguồn: cột "Giá về kho" của file KINH DOANH (cụm MLKK) và mã bộ -SL2/-SL3 = số tấm × giá mã gốc. Bỏ tích dòng nào chưa đúng.</div>
+      <div class="scroll" style="margin-top:6px"><table><tr><th><input type="checkbox" id="gvTatCa" checked></th><th>SKU</th><th class="num">Giá gợi ý</th><th>Nguồn</th></tr>
+      ${goiY.map((r, i) => `<tr><td><input type="checkbox" data-gvgy="${i}" checked></td><td><span class="sku">${esc(r.sku)}</span></td><td class="num">${fmt(r.goiY.gia)}</td><td class="muted">${esc(r.goiY.nguon)}</td></tr>`).join('')}</table></div>
+      <div class="row" style="gap:6px;margin-top:6px"><button class="btn" id="gvLuuGy">Lưu các giá đã tích</button><button class="btn ghost" id="gvDong">Đóng</button></div></div>`;
+    $('gvDong').onclick = () => { GV.hop = ''; $('gvHop').innerHTML = ''; };
+    $('gvTatCa').onchange = () => document.querySelectorAll('[data-gvgy]').forEach(c => c.checked = $('gvTatCa').checked);
+    $('gvLuuGy').onclick = () => {
+      const ds = [...document.querySelectorAll('[data-gvgy]')].filter(c => c.checked).map(c => goiY[+c.dataset.gvgy]).map(r => ({ sku: r.sku, gia: r.goiY.gia, tuNgay: '', ghiChu: 'gợi ý: ' + r.goiY.nguon }));
+      if (!ds.length) { toast('Chưa tích dòng nào.'); return; }
+      luuGia(ds);
+    };
+  };
+  $('gvq').oninput = () => { GV.q = $('gvq').value; GV.n = 150; clearTimeout(vGiaVon.h); vGiaVon.h = setTimeout(ve, 150); };
+  document.querySelectorAll('[data-gvloc]').forEach(c => c.onclick = () => { GV.loc = c.dataset.gvloc; GV.n = 150; GV.mo = null; vGiaVon(cumChips, bindCum); });
+  $('gvDan').onclick = () => { GV.hop = 'dan'; hopDan(); };
+  if ($('gvGy')) $('gvGy').onclick = () => { GV.hop = 'gy'; hopGoiY(); };
+  if (GV.hop === 'dan') hopDan(); else if (GV.hop === 'gy' && goiY.length) hopGoiY();
+  ve();
 }
 
 /* ============ Shopee: cụm shop (Phụ kiện MLKK / robot / ô tô) → shop; Tổng quan; Theo SKU ============ */
