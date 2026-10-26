@@ -360,7 +360,7 @@ function prep() {
   D.TRANG.forEach(p => p._k = norm(p['Tên trang'] + ' ' + p['Hãng xe'] + ' ' + p['Dòng xe'] + ' ' + p['SKU'] + ' ' + p['URL (handle)'] + ' ' + (p['Mã listing'] || '')));
   D.shops = [...new Set(D.LIST.map(l => l['Shop']).filter(Boolean))];
   D.LKX_T = objs(D.lkxTrang); D.LKX_B = objs(D.lkxBt); D.PHEU = objs(D.pheu);
-  D.PHEU.forEach(x => x._k = norm(x['SKU'] + ' ' + x['Thương hiệu'] + ' ' + x['Model máy (SKU_MLKK)'] + ' ' + x['Web LKX'] + ' ' + x['Shopee hepa_hn'] + ' ' + x['Loại lọc']));
+  D.PHEU.forEach(x => x._k = norm(x['Họ'] + ' ' + x['SKU'] + ' ' + x['Thương hiệu'] + ' ' + x['Model máy (SKU_MLKK)'] + ' ' + x['Web LKX'] + ' ' + x['Shopee hepa_hn'] + ' ' + x['Loại lọc']));
   D.LKX_T.forEach(p => {
     p._bt = D.LKX_B.filter(b => b['Code listing'] === p['Code listing']);
     p._k = norm(p['Tên trang'] + ' ' + p['Code listing'] + ' ' + p['Hãng'] + ' ' + p['Handle'] + ' ' + p['SKU'] + ' ' + p._bt.map(b => b['Biến thể'] + ' ' + b['SKU trên web']).join(' '));
@@ -414,7 +414,7 @@ function vTongQuan() {
       <div class="stat click" data-go="tc"><div class="n">${fmt(D.SKU.length)}</div><div class="l">SKU chuẩn · ${fmt(skuCheck)} cần kiểm tra</div></div>
       <div class="stat click" data-go="web"><div class="n">${fmt(P.length)}</div><div class="l">Trang web dự kiến · ${fmt(ready)} sẵn sàng</div></div>
       <div class="stat"><div class="n">${fmt(D.BT.length)}</div><div class="l">Biến thể web</div></div>
-      ${D.PHEU.length ? `<div class="stat click" data-go="pheu"><div class="n">${fmt(D.PHEU.length)}</div><div class="l">SKU trong Phễu Triển Khai · ${fmt(D.PHEU.filter(x => pheuBuoc(x) === 5).length)} chờ anh duyệt</div></div>` : ''}
+      ${D.PHEU.length ? `<div class="stat click" data-go="pheu"><div class="n">${fmt(D.PHEU.length)}</div><div class="l">Họ hàng trong Phễu Triển Khai · ${fmt(D.PHEU.filter(x => pheuBuoc(x) === 5).length)} chờ anh duyệt</div></div>` : ''}
       ${D.LKX_T.length ? `<div class="stat click" data-go="lkx"><div class="n">${fmt(D.LKX_T.length)}</div><div class="l">Trang web Lọc Khí Xanh · ${fmt(D.LKX_B.filter(b => !b['SKU chuẩn']).length)} biến thể chưa ghép SKU</div></div>` : ''}
       <div class="stat click" data-go="cho" style="${p.all ? 'border-color:#f2b632' : ''}"><div class="n">${fmt(p.all)}</div><div class="l">Câu hỏi / việc chưa xong</div></div>
     </div>
@@ -1159,7 +1159,7 @@ function vPheu() {
   const max = Math.max(...dem, 1);
   $('main').innerHTML = `
     <div class="card"><h2>Phễu Triển Khai · Màng lọc + lõi lọc không khí</h2>
-      <div class="muted" style="margin-bottom:8px">Nguồn: web lockhixanh.vn + Shopee hepa_hn. Mỗi SKU đi qua 6 bước của template listing; chỉ bước 6 mới được xuất file đăng. ${esc(D.nguonPheu || '')}</div>
+      <div class="muted" style="margin-bottom:8px">Nguồn: web lockhixanh.vn + Shopee hepa_hn. Mỗi mục là một HỌ hàng (các SKU cùng hồ sơ / cùng họ màng, vd Xám–Xanh–Tím, P50 HEPA–THAN–COMBO) = một trang / một listing, đi qua 6 bước của template; chỉ bước 6 mới được xuất file đăng. ${esc(D.nguonPheu || '')}</div>
       ${PHEU_BUOC.map((t, i) => `<div class="item" data-pb="${i + 1}" style="padding:6px 0;border:0;${PH.buoc === i + 1 ? 'font-weight:700' : ''}">
         <div style="display:flex;gap:10px;align-items:center"><div style="width:150px;flex:none">${i + 1}. ${t}</div>
         <div style="flex:1;background:var(--chip);border-radius:6px;height:22px;overflow:hidden"><div style="width:${Math.max(dem[i] / max * 100, dem[i] ? 2 : 0)}%;height:100%;background:var(--brand-2)"></div></div>
@@ -1173,8 +1173,8 @@ function vPheu() {
   const draw = () => {
     const w = norm(PH.q).split(' ').filter(Boolean);
     const rows = D.PHEU.filter(x => (!PH.buoc || pheuBuoc(x) === PH.buoc) && (!PH.nhom || x['Nhóm'] === PH.nhom) && w.every(k => x._k.indexOf(k) >= 0));
-    $('phres').innerHTML = `<h2>${rows.length} SKU <span class="muted" style="font-weight:400">· xếp theo bước rồi số bán 90 ngày</span></h2>` + rows.slice(0, PH.n).map(x => `
-      <div class="item" data-ph="${esc(x['SKU'])}"><div class="t"><span class="sku">${esc(x['SKU'])}</span> ${pheuTag(pheuBuoc(x))} <span class="muted">${esc(x['Nhóm'])} · ${esc(x['Loại lọc'])} · ${esc(x['Thương hiệu'] || 'chưa rõ hãng')}</span></div>
+    $('phres').innerHTML = `<h2>${rows.length} họ · ${rows.reduce((a, x) => a + String(x['SKU']).split(', ').length, 0)} SKU <span class="muted" style="font-weight:400">· xếp theo bước rồi số bán 90 ngày</span></h2>` + rows.slice(0, PH.n).map(x => `
+      <div class="item" data-ph="${esc(x['Họ'])}"><div class="t"><span class="sku">${esc(x['Họ'])}</span> ${x['SKU'] !== x['Họ'] ? '<span class="muted">' + esc(x['SKU']) + '</span>' : ''} ${pheuTag(pheuBuoc(x))} <span class="muted">${esc(x['Nhóm'])} · ${esc(x['Loại lọc'])} · ${esc(x['Thương hiệu'] || 'chưa rõ hãng')}</span></div>
       <div class="muted">Bán 90 ngày: <b>${fmt(num(x['Bán 90 ngày']))}</b> · web: ${x['Web LKX'] ? esc(x['Web LKX'].split(', ').length + ' trang') + (x['Giá web'] ? ' (' + esc(x['Giá web']) + ')' : '') : '<b>chưa có trang</b>'}
         · hepa_hn: ${x['Shopee hepa_hn'] ? esc(x['Shopee hepa_hn'].split(', ').length + ' listing') + (x['Giá hepa_hn'] ? ' (' + esc(x['Giá hepa_hn']) + ')' : '') : 'không bán'}
         ${x['Model máy (SKU_MLKK)'] ? ' · model: ' + esc(String(x['Model máy (SKU_MLKK)']).slice(0, 60)) : ''}
@@ -1189,16 +1189,18 @@ function vPheu() {
   draw();
 }
 function pheuDanhDau(s) { return esc(s).replace(/\u27e6(.*?)\u27e7/g, '<mark style="background:#ffe1e1;color:#a30000">$1</mark>'); }
-async function openPheu(sku) {
-  const x = D.PHEU.find(r => r['SKU'] === sku); if (!x) return;
+async function openPheu(ho) {
+  const x = D.PHEU.find(r => r['Họ'] === ho); if (!x) return;
+  const sku = ho;
   const b = pheuBuoc(x);
   openPanel('Phễu · ' + sku, '<div class="loading">Đang đọc…</div>');
   let c;
-  try { c = await call('pheuChiTiet', TOKEN, sku); } catch (e) { $('pB').innerHTML = '<div class="err">' + esc(e.message) + '</div>'; return; }
+  try { c = await call('pheuChiTiet', TOKEN, ho); } catch (e) { $('pB').innerHTML = '<div class="err">' + esc(e.message) + '</div>'; return; }
   c = c || { web: [], hepa: [], ung_vien: [] };
   const bn = c.ban_nhap, ma = pheuMa(x), khoa = ma + '@' + x['Phiên bản'], d = decision('PHEU', khoa);
   const stepper = PHEU_BUOC.map((t, i) => `<span class="tag ${i + 1 < b ? 'ok' : i + 1 === b ? 'info' : ''}" style="${i + 1 === b ? 'font-weight:700' : 'opacity:.75'}">${i + 1}. ${t}</span>`).join(' ');
-  let html = `<div class="card"><div><span class="sku" style="font-size:20px">${esc(sku)}</span> <span class="muted">${esc(x['Nhóm'])} · ${esc(x['Loại lọc'])} · ${esc(x['Thương hiệu'])}</span></div>
+  let html = `<div class="card"><div><span class="sku" style="font-size:20px">${esc(ho)}</span> <span class="muted">${esc(x['Nhóm'])} · ${esc(x['Loại lọc'])} · ${esc(x['Thương hiệu'])}</span></div>
+    <div class="row" style="margin-top:6px">${(c.skus || [x['SKU']]).map(s => `<a href="#" data-sku="${esc(s)}"><span class="tag info">${esc(s)}</span></a>`).join('')} <span class="muted">· bán 90 ngày ${fmt(num(x['Bán 90 ngày']))} · cùng một trang / listing</span></div>
     <div class="row" style="margin-top:8px">${stepper}</div><div class="muted" style="margin-top:6px">${esc(PHEU_GIAI[b - 1])}</div>
     ${x['Hồ sơ'] ? '<div class="muted">Hồ sơ: ' + esc(x['Hồ sơ']) + (x['Bản nháp'] ? ' · bản nháp: ' + esc(x['Bản nháp']) + '/BAN_DUYET.html' : '') + '</div>' : ''}</div>
     <div class="card"><h2>Dữ kiện ứng viên (chưa phải dữ kiện đã xác minh)</h2><div class="scroll"><table><tr><th>Trường</th><th>Giá trị</th><th>Nguồn</th></tr>
@@ -1206,9 +1208,9 @@ async function openPheu(sku) {
       ${(c.cho_bat_buoc || []).length ? '<div style="margin-top:6px"><b>Hồ sơ còn chờ anh:</b> ' + c.cho_bat_buoc.map(esc).join(', ') + '</div>' : ''}</div>
     <div class="card"><h2>Web Lọc Khí Xanh (${c.web.length} biến thể)</h2>${c.web.length ? `<div class="scroll"><table><tr><th>Trang</th><th>Biến thể</th><th class="num">Giá</th><th>SKU</th></tr>
       ${c.web.map(w => `<tr><td><a href="#" data-lkx="${esc(w.ma)}"><span class="sku">${esc(w.ma)}</span></a> ${esc(w.ten)}</td><td>${esc(w.bt)}</td><td class="num">${w.gia ? fmt(w.gia) : ''}</td>
-        <td>${w.sku_web ? '<span class="tag ok">trên web</span>' : '<span class="tag info" style="white-space:normal">' + esc(w.cach) + '</span>'}</td></tr>`).join('')}</table></div>` : '<div class="muted">Chưa có trang web nào bán SKU này.</div>'}</div>
-    <div class="card"><h2>Shopee hepa_hn (${c.hepa.length} phân loại)</h2>${c.hepa.length ? `<div class="scroll"><table><tr><th>Listing</th><th>Phân loại</th><th class="num">Giá</th></tr>
-      ${c.hepa.map(h => `<tr><td><span class="sku">${esc(h.ma)}</span> ${esc(String(h.ten).slice(0, 80))} ${shopUrl('hepa_hn', h.id) ? `<a href="${shopUrl('hepa_hn', h.id)}" target="_blank" rel="noopener">↗</a>` : ''}</td><td>${esc(h.pl)}</td><td class="num">${h.gia ? fmt(h.gia) : ''}</td></tr>`).join('')}</table></div>` : '<div class="muted">Shop hepa_hn không bán SKU này.</div>'}</div>`;
+        <td><span class="sku">${esc(w.sku || '')}</span> ${w.sku_web ? '<span class="tag ok">trên web</span>' : '<span class="tag info" style="white-space:normal">' + esc(w.cach) + '</span>'}</td></tr>`).join('')}</table></div>` : '<div class="muted">Chưa có trang web nào bán SKU này.</div>'}</div>
+    <div class="card"><h2>Shopee hepa_hn (${c.hepa.length} phân loại)</h2>${c.hepa.length ? `<div class="scroll"><table><tr><th>Listing</th><th>Phân loại</th><th>SKU</th><th class="num">Giá</th></tr>
+      ${c.hepa.map(h => `<tr><td><span class="sku">${esc(h.ma)}</span> ${esc(String(h.ten).slice(0, 80))} ${shopUrl('hepa_hn', h.id) ? `<a href="${shopUrl('hepa_hn', h.id)}" target="_blank" rel="noopener">↗</a>` : ''}</td><td>${esc(h.pl)}</td><td class="sku">${esc(h.sku || '')}</td><td class="num">${h.gia ? fmt(h.gia) : ''}</td></tr>`).join('')}</table></div>` : '<div class="muted">Shop hepa_hn không bán SKU này.</div>'}</div>`;
   if (bn) {
     const kt = bn.kiem_tra;
     html += `<div class="card"><h2>Bản nháp · phiên bản <span class="sku">${esc(bn.phien)}</span></h2>
@@ -1229,9 +1231,9 @@ async function openPheu(sku) {
   $('pB').innerHTML = html;
   bindItems($('pB'));
   const luu = async qd => {
-    const r = await call('luuQuyetDinh', TOKEN, { loai: 'PHEU', khoa, qd, ghiChu: $('phGc').value.trim(), moTa: 'Phễu ' + sku });
+    const r = await call('luuQuyetDinh', TOKEN, { loai: 'PHEU', khoa, qd, ghiChu: $('phGc').value.trim(), moTa: 'Phễu ' + ho });
     D.qd['PHEU|' + khoa] = { qd: r.qd, ghiChu: r.ghiChu, luc: r.luc };
-    toast(qd === 'Duyệt' ? 'Đã duyệt phiên bản ' + bn.phien + '.' : 'Đã ghi yêu cầu sửa.'); openPheu(sku);
+    toast(qd === 'Duyệt' ? 'Đã duyệt phiên bản ' + bn.phien + '.' : 'Đã ghi yêu cầu sửa.'); openPheu(ho);
   };
   if ($('phDuyet')) $('phDuyet').onclick = () => luu('Duyệt').catch(e => toast(e.message));
   if ($('phSua')) $('phSua').onclick = () => { if (!$('phGc').value.trim()) { toast('Ghi rõ cần sửa gì.'); return; } luu('Sửa lại').catch(e => toast(e.message)); };
