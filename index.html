@@ -180,6 +180,7 @@
       <button data-v="web">Web Xfilter.vn</button>
       <button data-v="lkx">Web Lọc Khí Xanh</button>
       <button data-v="pheu">Phễu Triển Khai</button>
+      <button data-v="db">Duyệt trước đăng</button>
       <button data-v="cho">Câu hỏi / việc <span class="badge hidden" id="choBadge"></span></button>
     </nav>
   </header>
@@ -359,7 +360,7 @@ function prep() {
   D.LIST.forEach(l => l._k = norm(l['Tên listing'] + ' ' + l['SKU chuẩn'] + ' ' + l['Mã listing'] + ' ' + l['Shop'] + ' ' + (l['Code listing'] || '')));
   D.TRANG.forEach(p => p._k = norm(p['Tên trang'] + ' ' + p['Hãng xe'] + ' ' + p['Dòng xe'] + ' ' + p['SKU'] + ' ' + p['URL (handle)'] + ' ' + (p['Mã listing'] || '')));
   D.shops = [...new Set(D.LIST.map(l => l['Shop']).filter(Boolean))];
-  D.LKX_T = objs(D.lkxTrang); D.LKX_B = objs(D.lkxBt); D.PHEU = objs(D.pheu);
+  D.LKX_T = objs(D.lkxTrang); D.LKX_B = objs(D.lkxBt); D.PHEU = objs(D.pheu); D.NB = objs(D.nhomBai);
   D.PHEU.forEach(x => x._k = norm(x['Họ'] + ' ' + x['SKU'] + ' ' + x['Thương hiệu'] + ' ' + x['Model máy (SKU_MLKK)'] + ' ' + x['Web LKX'] + ' ' + x['Shopee hepa_hn'] + ' ' + x['Loại lọc']));
   D.LKX_T.forEach(p => {
     p._bt = D.LKX_B.filter(b => b['Code listing'] === p['Code listing']);
@@ -391,7 +392,7 @@ function render() {
   document.querySelectorAll('#nav button').forEach(b => b.classList.toggle('on', b.dataset.v === VIEW));
   const p = pending(); const bd = $('choBadge');
   bd.textContent = p.all; bd.classList.toggle('hidden', !p.all);
-  ({ tq: vTongQuan, sku: vSku, tc: vTraCuu, sp: vShopee, tt: vTiktok, web: vWeb, lkx: vLkx, pheu: vPheu, cho: vCho })[VIEW]();
+  ({ tq: vTongQuan, sku: vSku, tc: vTraCuu, sp: vShopee, tt: vTiktok, web: vWeb, lkx: vLkx, pheu: vPheu, db: vDuyet, cho: vCho })[VIEW]();
   window.scrollTo(0, 0);
 }
 
@@ -414,6 +415,7 @@ function vTongQuan() {
       <div class="stat click" data-go="tc"><div class="n">${fmt(D.SKU.length)}</div><div class="l">SKU chuẩn · ${fmt(skuCheck)} cần kiểm tra</div></div>
       <div class="stat click" data-go="web"><div class="n">${fmt(P.length)}</div><div class="l">Trang web dự kiến · ${fmt(ready)} sẵn sàng</div></div>
       <div class="stat"><div class="n">${fmt(D.BT.length)}</div><div class="l">Biến thể web</div></div>
+      ${D.NB.length ? `<div class="stat click" data-go="db"><div class="n">${fmt(D.NB.filter(nbDaDuyet).length)}/${fmt(D.NB.length)}</div><div class="l">Bài web đã duyệt trước đăng</div></div>` : ''}
       ${D.PHEU.length ? `<div class="stat click" data-go="pheu"><div class="n">${fmt(D.PHEU.length)}</div><div class="l">Họ hàng trong Phễu Triển Khai · ${fmt(D.PHEU.filter(x => pheuBuoc(x) === 5).length)} chờ anh duyệt</div></div>` : ''}
       ${D.LKX_T.length ? `<div class="stat click" data-go="lkx"><div class="n">${fmt(D.LKX_T.length)}</div><div class="l">Trang web Lọc Khí Xanh · ${fmt(D.LKX_B.filter(b => !b['SKU chuẩn']).length)} biến thể chưa ghép SKU</div></div>` : ''}
       <div class="stat click" data-go="cho" style="${p.all ? 'border-color:#f2b632' : ''}"><div class="n">${fmt(p.all)}</div><div class="l">Câu hỏi / việc chưa xong</div></div>
@@ -1237,6 +1239,109 @@ async function openPheu(ho) {
   };
   if ($('phDuyet')) $('phDuyet').onclick = () => luu('Duyệt').catch(e => toast(e.message));
   if ($('phSua')) $('phSua').onclick = () => { if (!$('phGc').value.trim()) { toast('Ghi rõ cần sửa gì.'); return; } luu('Sửa lại').catch(e => toast(e.message)); };
+}
+
+/* ============ Duyệt trước đăng (anh Trung 26/10/2026 — Note 55) ============
+   Nhóm bài viết (lockhixanh.vn: 1 trang = 1 máy, tách trang gộp, chia theo hãng). Anh duyệt tiêu đề / SEO / giá / SKU / ảnh
+   từng bài; chỉ bài "Duyệt" đúng phiên bản mới vào gói giao GPT. */
+let DB_ = { nhom: '', loc: 'chua', viec: '', n: 30, cache: {} };
+function nbKhoa(r) { return (r['Mã bài'] || r.ma) + '@' + (r['Phiên bản'] || r.phien); }
+function nbQd(r) { return decision('NHOM_BAI', nbKhoa(r)); }
+function nbDaDuyet(r) { const d = nbQd(r); return !!d && d.qd === 'Duyệt'; }
+function nbAnh(u, co) { return String(u || '').replace(/^\/\//, 'https://').replace(/(_(small|medium|large|grande|compact|thumb))?(\.[a-z]+)(\?.*)?$/i, '_' + co + '$3'); }
+function nbDem(rows) { return { tong: rows.length, duyet: rows.filter(nbDaDuyet).length, loi: rows.filter(r => r['Lỗi']).length, sua: rows.filter(r => (nbQd(r) || {}).qd === 'Sửa lại').length }; }
+async function vDuyet() {
+  if (!D.NB.length) { $('main').innerHTML = '<div class="card muted">Chưa có nhóm bài nào. Claude dựng nhóm bài (outputs/nhom-bai) rồi nạp lại dữ liệu.</div>'; return; }
+  const ban = {}; D.NB.forEach(r => ban[r['Nhóm']] = (ban[r['Nhóm']] || 0) + num(r['Bán 90 ngày']));
+  const nhoms = [...new Map(D.NB.map(r => [r['Nhóm'], r['Tên nhóm']])).entries()].sort((a, b) => ban[b[0]] - ban[a[0]]);   // hãng bán nhiều lên trước
+  if (!DB_.nhom) DB_.nhom = nhoms[0][0];
+  const rowsN = D.NB.filter(r => r['Nhóm'] === DB_.nhom), dem = nbDem(D.NB), dn = nbDem(rowsN);
+  $('main').innerHTML = `
+    <div class="card"><h2>Duyệt trước đăng · lockhixanh.vn</h2>
+      <div class="muted">Tổng hợp bài viết theo luật 1 trang = 1 máy (tách trang đang gộp nhiều máy), chia nhóm theo hãng. Anh xem tiêu đề, SEO, giá, SKU, ảnh từng bài → <b>Duyệt</b> hoặc <b>Cần sửa</b>.
+        Chỉ bài đã duyệt đúng phiên bản mới vào <b>gói giao GPT</b>; bài đổi nội dung sẽ phải duyệt lại. ${esc(D.nguonNhomBai || '')}</div>
+      <div class="row" style="margin-top:8px"><span class="tag info">${dem.tong} bài · ${nhoms.length} nhóm</span><span class="tag ok">Đã duyệt ${dem.duyet}</span>
+        <span class="tag warn">Cần sửa ${dem.sua}</span><span class="tag warn">Còn lỗi ${dem.loi}</span></div>
+      <div style="margin-top:8px">${nhoms.map(([m, t]) => { const d = nbDem(D.NB.filter(r => r['Nhóm'] === m));
+        return `<span class="chip ${DB_.nhom === m ? 'on' : ''}" data-nh="${esc(m)}">${esc(t.replace('lockhixanh.vn · ', ''))} ${d.duyet}/${d.tong}</span>`; }).join('')}</div>
+      <div>${[['chua', 'Chưa duyệt'], ['loi', 'Còn lỗi'], ['sua', 'Cần sửa'], ['duyet', 'Đã duyệt'], ['', 'Tất cả']].map(([k, t]) => `<span class="chip ${DB_.loc === k ? 'on' : ''}" data-nl="${k}">${t}</span>`).join('')}
+        ${['', 'Sửa', 'Tạo', 'Bật'].map(k => `<span class="chip ${DB_.viec === k ? 'on' : ''}" data-nv="${k}">${k ? { Sửa: 'Sửa trang cũ', Tạo: 'Tạo mới (tách)', Bật: 'Bật hiện' }[k] : 'Mọi việc'}</span>`).join('')}</div>
+    </div>
+    <div class="card"><div class="row" style="justify-content:space-between"><h2 style="margin:0">${esc(nhoms.find(x => x[0] === DB_.nhom)[1])} · đã duyệt ${dn.duyet}/${dn.tong}</h2>
+      <button class="btn" id="nbGoi" ${dn.duyet ? '' : 'disabled'}>Gói giao GPT (${dn.duyet} bài đã duyệt)</button></div><div id="nbGoiBox"></div><div id="nbSau"></div></div>
+    <div id="nbRes"><div class="loading">Đang đọc bài…</div></div>`;
+  document.querySelectorAll('[data-nh]').forEach(c => c.onclick = () => { DB_.nhom = c.dataset.nh; DB_.n = 30; vDuyet(); });
+  document.querySelectorAll('[data-nl]').forEach(c => c.onclick = () => { DB_.loc = c.dataset.nl; DB_.n = 30; vDuyet(); });
+  document.querySelectorAll('[data-nv]').forEach(c => c.onclick = () => { DB_.viec = c.dataset.nv; DB_.n = 30; vDuyet(); });
+  $('nbGoi').onclick = nbGoi;
+  let ds = DB_.cache[DB_.nhom];
+  if (!ds) { try { ds = DB_.cache[DB_.nhom] = await call('nhomBai', TOKEN, DB_.nhom); } catch (e) { $('nbRes').innerHTML = '<div class="card err">' + esc(e.message) + '</div>'; return; } }
+  const sau = ds.find(b => (b.viec_sau || []).length || (b.cho_anh || []).length);
+  if (sau && $('nbSau')) $('nbSau').innerHTML = `<details style="margin-top:8px"><summary class="muted">Việc theo sau của nhóm (${(sau.viec_sau || []).length} chuyển hướng 301, ${(sau.cho_anh || []).length} trang chờ anh)</summary>
+    ${(sau.viec_sau || []).map(v => `<div class="muted">• ${esc(v.viec)}: ${esc(v.tu)} → ${esc(v.den)} (${esc(v.ly_do)})</div>`).join('')}
+    ${(sau.cho_anh || []).map(v => `<div class="muted">• Chờ anh: ${esc(v.ten)} (${esc(v.ly_do)})</div>`).join('')}</details>`;
+  const loc = b => { const d = nbQd(b), ok = d && d.qd === 'Duyệt';
+    return (!DB_.viec || b.viec.startsWith(DB_.viec)) && (DB_.loc === '' || (DB_.loc === 'chua' && !ok && !(d && d.qd === 'Sửa lại')) || (DB_.loc === 'loi' && b.loi) ||
+      (DB_.loc === 'sua' && d && d.qd === 'Sửa lại') || (DB_.loc === 'duyet' && ok)); };
+  const rows = ds.filter(loc);
+  $('nbRes').innerHTML = (rows.length ? rows.slice(0, DB_.n).map(nbCard).join('') : '<div class="card muted">Không có bài nào trong bộ lọc này.</div>') +
+    (rows.length > DB_.n ? `<div class="card"><button class="btn ghost" id="nbMore">Xem thêm ${rows.length - DB_.n} bài</button></div>` : '');
+  if ($('nbMore')) $('nbMore').onclick = () => { DB_.n += 30; vDuyet(); };
+  bindItems($('nbRes'));
+  $('nbRes').querySelectorAll('[data-nbq]').forEach(btn => btn.onclick = () => nbLuu(btn));
+}
+function nbCard(b) {
+  const d = nbQd(b), ok = d && d.qd === 'Duyệt', moi = b.viec.startsWith('Tạo');
+  const dem = (s, lo, hi) => { const n = String(s || '').length; return `<span class="muted" style="${n < lo || n > hi ? 'color:#a30000;font-weight:700' : ''}">(${n})</span>`; };
+  const web = !moi && !b.viec.startsWith('Bật') ? 'https://lockhixanh.vn/products/' + b.handle : '';
+  return `<div class="card" style="${ok ? 'border-color:#7cc59a' : b.loi ? 'border-color:#f2b632' : ''}">
+    <div class="row" style="justify-content:space-between"><div><b>${b.stt}. ${esc(b.may)}</b> <span class="tag ${moi ? 'info' : 'ok'}">${esc(b.viec)}</span>
+      ${b.dot ? '<span class="tag">' + esc(b.dot) + '</span>' : ''} <span class="muted">bán 90 ngày ${fmt(num(b.ban_90))}</span></div>
+      <div>${d ? `<span class="tag ${ok ? 'ok' : 'warn'}">${esc(d.qd)}${d.ghiChu ? ': ' + esc(d.ghiChu) : ''}</span>` : '<span class="tag">Chưa duyệt</span>'}</div></div>
+    <div class="scroll" style="margin-top:6px"><table>
+      <tr><th style="width:120px">Tiêu đề</th><td><b>${esc(b.tieu_de)}</b> ${dem(b.tieu_de, 10, 70)}</td></tr>
+      <tr><th>SEO title</th><td>${esc(b.seo_title)} ${dem(b.seo_title, 10, 60)}</td></tr>
+      <tr><th>Meta</th><td>${esc(b.meta_description)} ${dem(b.meta_description, 120, 155)}</td></tr>
+      <tr><th>URL</th><td class="muted">/products/${esc(b.handle)} ${web ? `<a href="${esc(web)}" target="_blank" rel="noopener">xem web ↗</a>` : ''}
+        ${b.id_haravan ? ` · <a href="https://lockhixanh.myharavan.com/admin/products/${esc(b.id_haravan)}" target="_blank" rel="noopener">admin ↗</a>` : ''}
+        ${b.ma_listing ? ' · <a href="#" data-lkx="' + esc(b.ma_listing) + '">' + esc(b.ma_listing) + '</a>' : ''}</td></tr></table></div>
+    <div class="scroll" style="margin-top:6px"><table><tr><th>Biến thể</th><th>SKU</th><th class="num">Giá web</th><th class="num hide-m">Shopee LKX từ</th><th class="hide-m">Nguồn giá</th></tr>
+      ${b.bien_the.map(v => `<tr><td>${esc(v.ten)}</td><td><a href="#" data-sku="${esc(v.sku)}"><span class="sku">${esc(v.sku)}</span></a>${(v.ung_vien || []).length ? '<div class="muted">khác: ' + v.ung_vien.map(esc).join(', ') + '</div>' : ''}</td>
+        <td class="num">${v.gia ? fmt(v.gia) : '<b style="color:#a30000">chưa có</b>'}</td><td class="num hide-m">${v.gia_shopee_lkx ? fmt(v.gia_shopee_lkx) : ''}</td><td class="muted hide-m">${esc(v.gia_nguon || '')}</td></tr>`).join('')}</table></div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">${(b.anh || []).slice(0, 8).map((a, i) => `<a href="${esc(nbAnh(a.url, 'large'))}" target="_blank" rel="noopener" title="${esc(a.alt)}">
+      <img loading="lazy" src="${esc(nbAnh(a.url, 'small'))}" alt="${esc(a.alt)}" referrerpolicy="no-referrer" style="width:64px;height:64px;object-fit:cover;border-radius:8px;border:1px solid var(--line)"></a>`).join('')}
+      <span class="muted" style="align-self:center">${(b.anh || []).length} ảnh${(b.anh || [])[0] ? ' · alt: ' + esc(b.anh[0].alt) : ''}</span></div>
+    ${b.loi ? '<div style="margin-top:6px">' + b.loi.split(' · ').map(x => '<span class="tag warn" style="background:#ffe1e1;color:#a30000;white-space:normal">' + esc(x) + '</span>').join(' ') + '</div>' : ''}
+    ${b.luu ? '<div style="margin-top:4px">' + b.luu.split(' · ').map(x => '<span class="tag warn" style="white-space:normal">' + esc(x) + '</span>').join(' ') + '</div>' : ''}
+    <div class="muted" style="margin-top:4px">Nguồn: ${(b.nguon || []).map(n => (n.ma ? esc(n.ma) + ' ' : '') + esc(n.ten.slice(0, 60)) + (n.so_may > 1 ? ' (' + n.so_may + ' máy)' : '')).join(' · ')} · SKU: ${esc(b.do_chac_sku || '')}</div>
+    <div class="row" style="margin-top:8px;align-items:center" data-nbbox="${esc(b.ma)}">
+      ${['Tiêu đề', 'SEO', 'Giá', 'SKU', 'Ảnh'].map(k => `<label class="muted"><input type="checkbox" value="${k}"> ${k} sai</label>`).join(' ')}
+      <input type="text" placeholder="Ghi chú cần sửa" style="flex:1;min-width:160px">
+      <button class="btn" data-nbq="Duyệt" data-ma="${esc(b.ma)}" data-ph="${esc(b.phien)}" ${b.loi ? 'disabled title="Còn lỗi — sửa trước"' : ''}>Duyệt</button>
+      <button class="btn ghost" data-nbq="Sửa lại" data-ma="${esc(b.ma)}" data-ph="${esc(b.phien)}">Cần sửa</button></div>
+  </div>`;
+}
+async function nbLuu(btn) {
+  const box = btn.closest('[data-nbbox]'), sai = [...box.querySelectorAll('input[type=checkbox]:checked')].map(x => x.value);
+  const gc = [sai.length ? 'Sai: ' + sai.join(', ') : '', box.querySelector('input[type=text]').value.trim()].filter(Boolean).join(' · ');
+  if (btn.dataset.nbq === 'Sửa lại' && !gc) { toast('Đánh dấu phần sai hoặc ghi chú cần sửa gì.'); return; }
+  const khoa = btn.dataset.ma + '@' + btn.dataset.ph;
+  btn.disabled = true;
+  try {
+    const r = await call('luuQuyetDinh', TOKEN, { loai: 'NHOM_BAI', khoa, qd: btn.dataset.nbq, ghiChu: gc, moTa: 'Duyệt trước đăng ' + btn.dataset.ma });
+    D.qd['NHOM_BAI|' + khoa] = { qd: r.qd, ghiChu: r.ghiChu, luc: r.luc };
+    toast(btn.dataset.nbq === 'Duyệt' ? 'Đã duyệt.' : 'Đã ghi cần sửa.'); const y = window.scrollY; await vDuyet(); window.scrollTo(0, y);
+  } catch (e) { toast(e.message); btn.disabled = false; }
+}
+async function nbGoi() {
+  const box = $('nbGoiBox'); box.innerHTML = '<div class="loading">Đang tạo gói…</div>';
+  try {
+    const g = await call('nhomBaiGoi', TOKEN, DB_.nhom);
+    if (!g.so) { box.innerHTML = '<div class="muted">Chưa có bài nào được duyệt đúng phiên bản.</div>'; return; }
+    box.innerHTML = `<div class="muted" style="margin:8px 0">${g.so}/${g.tong} bài đã duyệt. Dán nguyên khối dưới cho GPT / Codex; bài chưa duyệt không có trong gói.</div>
+      <textarea id="nbText" style="width:100%;height:260px;font:12px/1.4 Menlo,monospace">${esc(g.text)}</textarea><button class="btn" id="nbCopy">Sao chép</button>`;
+    $('nbCopy').onclick = async () => { try { await navigator.clipboard.writeText($('nbText').value); toast('Đã sao chép gói giao GPT.'); } catch (e) { $('nbText').select(); document.execCommand('copy'); toast('Đã sao chép.'); } };
+  } catch (e) { box.innerHTML = '<div class="err">' + esc(e.message) + '</div>'; }
 }
 
 /* ============ Câu hỏi / việc ============ */
