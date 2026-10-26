@@ -89,6 +89,38 @@
   .btn:disabled { opacity: .5; cursor: default; }
   .chip { display: inline-block; border: 1px solid var(--line); background: var(--chip); border-radius: 999px; padding: 4px 11px; cursor: pointer; font-size: 13px; margin: 2px 4px 2px 0; }
   .chip.on { background: var(--brand-2); border-color: var(--brand-2); color: #fff; }
+  /* Hộp nháp (kiểu BigSeller) */
+  .hn-tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--line); margin: -4px -16px 12px; padding: 0 16px; overflow-x: auto; }
+  .hn-tabs a { padding: 10px 14px; text-decoration: none; color: var(--ink); border-bottom: 2px solid transparent; white-space: nowrap; }
+  .hn-tabs a.on { color: var(--brand-2); border-bottom-color: var(--brand-2); font-weight: 600; }
+  .hn-tabs a .bad { color: var(--bad); }
+  .hn-bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0; }
+  .hn-bar .btn { padding: 6px 12px; font-size: 13px; }
+  .hn-tbl { width: 100%; border-collapse: collapse; }
+  .hn-tbl th { background: #f6f8fb; font-size: 12px; color: var(--muted); font-weight: 600; }
+  .hn-tbl td { padding: 10px 8px; }
+  .hn-tbl tr:hover td { background: #fafcff; }
+  .hn-sp { display: flex; gap: 10px; min-width: 260px; }
+  .hn-sp img { width: 64px; height: 64px; object-fit: cover; border-radius: 8px; border: 1px solid var(--line); flex: none; background: #f4f6f8; }
+  .hn-sp .ten { font-weight: 600; color: var(--ink); cursor: pointer; }
+  .hn-sp .ten:hover { color: var(--brand-2); text-decoration: underline; }
+  .hn-bt { min-height: 34px; line-height: 1.25; padding: 4px 0; border-bottom: 1px dashed var(--line); }
+  .hn-bt:last-child { border-bottom: 0; }
+  .hn-bt small { display: block; color: var(--muted); font-size: 11px; }
+  .hn-thao { min-width: 92px; }
+  .hn-thao a { display: block; font-size: 13px; margin-bottom: 4px; cursor: pointer; white-space: nowrap; }
+  .hn-dem { font-size: 11px; color: var(--muted); }
+  .hn-dem.vuot { color: var(--bad); font-weight: 700; }
+  .hn-form label { display: block; font-size: 13px; color: var(--muted); margin: 10px 0 4px; }
+  .hn-form input[type=text], .hn-form textarea, .hn-form select { width: 100%; border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font: inherit; }
+  .hn-form textarea { min-height: 140px; font: 12px/1.45 Menlo, monospace; }
+  .hn-anh { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; }
+  .hn-anh .o { border: 1px solid var(--line); border-radius: 8px; padding: 6px; background: #fff; }
+  .hn-anh .o img { width: 100%; aspect-ratio: 1/1; object-fit: cover; border-radius: 6px; }
+  .hn-anh .o .nut { display: flex; justify-content: space-between; font-size: 13px; margin-top: 4px; }
+  .hn-anh .o input { width: 100%; font-size: 12px; margin-top: 4px; border: 1px solid var(--line); border-radius: 6px; padding: 4px 6px; }
+  .hn-top { position: sticky; top: 52px; z-index: 3; background: var(--bg); padding: 8px 0; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  @media (max-width: 760px) { .hn-tbl .hide-m { display: none; } .hn-sp { min-width: 150px; } .hn-sp img { display: none; } .hn-tbl td { padding: 8px 4px; } }
   .tag { display: inline-block; border-radius: 6px; padding: 1px 7px; font-size: 12px; font-weight: 600; white-space: nowrap; }
   .tag.ok { background: var(--ok-bg); color: var(--ok); }
   .tag.warn { background: var(--warn-bg); color: var(--warn); }
@@ -180,7 +212,7 @@
       <button data-v="web">Web Xfilter.vn</button>
       <button data-v="lkx">Web Lọc Khí Xanh</button>
       <button data-v="pheu">Phễu Triển Khai</button>
-      <button data-v="db">Duyệt trước đăng</button>
+      <button data-v="hn">Hộp nháp</button>
       <button data-v="cho">Câu hỏi / việc <span class="badge hidden" id="choBadge"></span></button>
     </nav>
   </header>
@@ -360,7 +392,8 @@ function prep() {
   D.LIST.forEach(l => l._k = norm(l['Tên listing'] + ' ' + l['SKU chuẩn'] + ' ' + l['Mã listing'] + ' ' + l['Shop'] + ' ' + (l['Code listing'] || '')));
   D.TRANG.forEach(p => p._k = norm(p['Tên trang'] + ' ' + p['Hãng xe'] + ' ' + p['Dòng xe'] + ' ' + p['SKU'] + ' ' + p['URL (handle)'] + ' ' + (p['Mã listing'] || '')));
   D.shops = [...new Set(D.LIST.map(l => l['Shop']).filter(Boolean))];
-  D.LKX_T = objs(D.lkxTrang); D.LKX_B = objs(D.lkxBt); D.PHEU = objs(D.pheu); D.NB = objs(D.nhomBai);
+  D.LKX_T = objs(D.lkxTrang); D.LKX_B = objs(D.lkxBt); D.PHEU = objs(D.pheu);
+  HN.data = null;                                   // Tải lại → đọc lại Hộp nháp
   D.PHEU.forEach(x => x._k = norm(x['Họ'] + ' ' + x['SKU'] + ' ' + x['Thương hiệu'] + ' ' + x['Model máy (SKU_MLKK)'] + ' ' + x['Web LKX'] + ' ' + x['Shopee hepa_hn'] + ' ' + x['Loại lọc']));
   D.LKX_T.forEach(p => {
     p._bt = D.LKX_B.filter(b => b['Code listing'] === p['Code listing']);
@@ -392,7 +425,7 @@ function render() {
   document.querySelectorAll('#nav button').forEach(b => b.classList.toggle('on', b.dataset.v === VIEW));
   const p = pending(); const bd = $('choBadge');
   bd.textContent = p.all; bd.classList.toggle('hidden', !p.all);
-  ({ tq: vTongQuan, sku: vSku, tc: vTraCuu, sp: vShopee, tt: vTiktok, web: vWeb, lkx: vLkx, pheu: vPheu, db: vDuyet, cho: vCho })[VIEW]();
+  ({ tq: vTongQuan, sku: vSku, tc: vTraCuu, sp: vShopee, tt: vTiktok, web: vWeb, lkx: vLkx, pheu: vPheu, hn: vHopNhap, cho: vCho })[VIEW]();
   window.scrollTo(0, 0);
 }
 
@@ -415,7 +448,7 @@ function vTongQuan() {
       <div class="stat click" data-go="tc"><div class="n">${fmt(D.SKU.length)}</div><div class="l">SKU chuẩn · ${fmt(skuCheck)} cần kiểm tra</div></div>
       <div class="stat click" data-go="web"><div class="n">${fmt(P.length)}</div><div class="l">Trang web dự kiến · ${fmt(ready)} sẵn sàng</div></div>
       <div class="stat"><div class="n">${fmt(D.BT.length)}</div><div class="l">Biến thể web</div></div>
-      ${D.NB.length ? `<div class="stat click" data-go="db"><div class="n">${fmt(D.NB.filter(nbDaDuyet).length)}/${fmt(D.NB.length)}</div><div class="l">Bài web đã duyệt trước đăng</div></div>` : ''}
+      ${Object.keys(D.hopNhapDem || {}).length ? `<div class="stat click" data-go="hn"><div class="n">${fmt((D.hopNhapDem || {}).nhap || 0)}</div><div class="l">Bài web trong Hộp nháp · ${fmt((D.hopNhapDem || {}).cho_dang || 0)} chờ đăng</div></div>` : ''}
       ${D.PHEU.length ? `<div class="stat click" data-go="pheu"><div class="n">${fmt(D.PHEU.length)}</div><div class="l">Họ hàng trong Phễu Triển Khai · ${fmt(D.PHEU.filter(x => pheuBuoc(x) === 5).length)} chờ anh duyệt</div></div>` : ''}
       ${D.LKX_T.length ? `<div class="stat click" data-go="lkx"><div class="n">${fmt(D.LKX_T.length)}</div><div class="l">Trang web Lọc Khí Xanh · ${fmt(D.LKX_B.filter(b => !b['SKU chuẩn']).length)} biến thể chưa ghép SKU</div></div>` : ''}
       <div class="stat click" data-go="cho" style="${p.all ? 'border-color:#f2b632' : ''}"><div class="n">${fmt(p.all)}</div><div class="l">Câu hỏi / việc chưa xong</div></div>
@@ -1241,107 +1274,252 @@ async function openPheu(ho) {
   if ($('phSua')) $('phSua').onclick = () => { if (!$('phGc').value.trim()) { toast('Ghi rõ cần sửa gì.'); return; } luu('Sửa lại').catch(e => toast(e.message)); };
 }
 
-/* ============ Duyệt trước đăng (anh Trung 26/10/2026 — Note 55) ============
-   Nhóm bài viết (lockhixanh.vn: 1 trang = 1 máy, tách trang gộp, chia theo hãng). Anh duyệt tiêu đề / SEO / giá / SKU / ảnh
-   từng bài; chỉ bài "Duyệt" đúng phiên bản mới vào gói giao GPT. */
-let DB_ = { nhom: '', loc: 'chua', viec: '', n: 30, cache: {} };
-function nbKhoa(r) { return (r['Mã bài'] || r.ma) + '@' + (r['Phiên bản'] || r.phien); }
-function nbQd(r) { return decision('NHOM_BAI', nbKhoa(r)); }
-function nbDaDuyet(r) { const d = nbQd(r); return !!d && d.qd === 'Duyệt'; }
-function nbAnh(u, co) { return String(u || '').replace(/^\/\//, 'https://').replace(/(_(small|medium|large|grande|compact|thumb))?(\.[a-z]+)(\?.*)?$/i, '_' + co + '$3'); }
-function nbDem(rows) { return { tong: rows.length, duyet: rows.filter(nbDaDuyet).length, loi: rows.filter(r => r['Lỗi']).length, sua: rows.filter(r => (nbQd(r) || {}).qd === 'Sửa lại').length }; }
-async function vDuyet() {
-  if (!D.NB.length) { $('main').innerHTML = '<div class="card muted">Chưa có nhóm bài nào. Claude dựng nhóm bài (outputs/nhom-bai) rồi nạp lại dữ liệu.</div>'; return; }
-  const ban = {}; D.NB.forEach(r => ban[r['Nhóm']] = (ban[r['Nhóm']] || 0) + num(r['Bán 90 ngày']));
-  const nhoms = [...new Map(D.NB.map(r => [r['Nhóm'], r['Tên nhóm']])).entries()].sort((a, b) => ban[b[0]] - ban[a[0]]);   // hãng bán nhiều lên trước
-  if (!DB_.nhom) DB_.nhom = nhoms[0][0];
-  const rowsN = D.NB.filter(r => r['Nhóm'] === DB_.nhom), dem = nbDem(D.NB), dn = nbDem(rowsN);
+/* ============ Hộp nháp — bài web chờ đăng (anh Trung 26/10/2026, Note 56; làm giống Hộp nháp BigSeller) ============
+   Danh sách: ảnh + TIÊU ĐỀ | SKU | GIÁ (mỗi biến thể một dòng) | cập nhật | thao tác. Trạng thái: Hộp nháp → Chờ đăng → Đang đăng →
+   Đã đăng / Đăng lỗi. Sửa từng bài ở trang Chỉnh sửa; sửa sau khi duyệt → về Hộp nháp (duyệt lại đúng phiên bản). */
+let HN = { tt: 'nhap', nhom: '', viec: '', loi: false, gia: false, q: '', trang: 1, chon: new Set(), data: null, sua: null, skuDs: null };
+const HN_TT = [['nhap', 'Hộp nháp'], ['cho_dang', 'Chờ đăng'], ['dang_dang', 'Đang đăng'], ['da_dang', 'Đã đăng'], ['loi', 'Đăng lỗi'], ['bo', 'Đã bỏ']];
+const HN_MOI_TRANG = 50;
+function hnAnh(u, co) { return String(u || '').replace(/^\/\//, 'https://').replace(/(_(small|medium|large|grande|compact|thumb|master))?(\.[a-z]+)(\?.*)?$/i, '_' + co + '$3'); }
+function hnGia(v) { return v ? fmt(v) + ' ₫' : ''; }
+function hnDem(s, lo, hi) { const n = String(s || '').length; return `<span class="hn-dem ${n < lo || n > hi ? 'vuot' : ''}">${n}/${hi}</span>`; }
+async function hnTai() { HN.data = await call('hopNhap', TOKEN); D.hopNhapDem = {}; HN.data.bai.forEach(b => D.hopNhapDem[b.trangThai] = (D.hopNhapDem[b.trangThai] || 0) + 1); }
+async function vHopNhap() {
+  if (HN.sua) return hnSua(HN.sua);
+  if (!HN.data) { $('main').innerHTML = '<div class="loading">Đang đọc Hộp nháp…</div>'; try { await hnTai(); } catch (e) { $('main').innerHTML = '<div class="card err">' + esc(e.message) + '</div>'; return; } }
+  const all = HN.data.bai;
+  if (!all.length) { $('main').innerHTML = '<div class="card muted">Hộp nháp trống. Claude dựng nhóm bài (outputs/nhom-bai) rồi nạp lại dữ liệu.</div>'; return; }
+  const demTT = {}; all.forEach(b => demTT[b.trangThai] = (demTT[b.trangThai] || 0) + 1);
+  const theoTT = all.filter(b => b.trangThai === HN.tt);
+  const ban = {}; all.forEach(b => ban[b.nhom] = (ban[b.nhom] || 0) + num(b.d.ban_90));
+  const nhoms = [...new Map(all.map(b => [b.nhom, b.tenNhom])).entries()].sort((a, b) => ban[b[0]] - ban[a[0]]);
+  const w = norm(HN.q).split(' ').filter(Boolean);
+  const rows = theoTT.filter(b => (!HN.nhom || b.nhom === HN.nhom) && (!HN.viec || String(b.d.viec).startsWith(HN.viec)) && (!HN.loi || b.loi.length) &&
+    (!HN.gia || b.luu.some(x => x.startsWith('Giá bất thường'))) &&
+    (!w.length || (b._k = b._k || norm([b.d.tieu_de, b.d.may, b.d.handle, b.ma, ...(b.d.bien_the || []).map(v => v.sku + ' ' + v.ten)].join(' '))) && w.every(k => b._k.indexOf(k) >= 0)))
+    .sort((a, b) => (ban[b.nhom] - ban[a.nhom]) || (num(b.d.ban_90) - num(a.d.ban_90)) || String(a.d.tieu_de).localeCompare(b.d.tieu_de));   // hãng bán chạy, bài bán chạy trước
+  const tong = rows.length, soTrang = Math.max(1, Math.ceil(tong / HN_MOI_TRANG)); HN.trang = Math.min(HN.trang, soTrang);
+  const trang = rows.slice((HN.trang - 1) * HN_MOI_TRANG, HN.trang * HN_MOI_TRANG);
+  HN.chon = new Set([...HN.chon].filter(m => rows.some(b => b.ma === m)));
+  const nut = {
+    nhap: ['<button class="btn" data-hb="duyet">Duyệt</button>', '<button class="btn ghost" data-hb="sua">Chỉnh sửa hàng loạt ▾</button>', '<button class="btn ghost" data-hb="bo">Bỏ</button>'],
+    cho_dang: ['<button class="btn" data-hb="goi">Tải lên: gói giao GPT</button>', '<button class="btn ghost" data-hb="trolai">Đưa về Hộp nháp</button>'],
+    dang_dang: ['<button class="btn" data-hb="dadang">Đánh dấu đã đăng</button>', '<button class="btn ghost" data-hb="trolai">Đưa về Hộp nháp</button>'],
+    da_dang: ['<button class="btn ghost" data-hb="trolai">Đưa về Hộp nháp (sửa lại)</button>'],
+    loi: ['<button class="btn ghost" data-hb="trolai">Đưa về Hộp nháp</button>', '<button class="btn ghost" data-hb="dadang">Đánh dấu đã đăng</button>'],
+    bo: ['<button class="btn ghost" data-hb="khoiphuc">Khôi phục</button>'] }[HN.tt];
   $('main').innerHTML = `
-    <div class="card"><h2>Duyệt trước đăng · lockhixanh.vn</h2>
-      <div class="muted">Tổng hợp bài viết theo luật 1 trang = 1 máy (tách trang đang gộp nhiều máy), chia nhóm theo hãng. Anh xem tiêu đề, SEO, giá, SKU, ảnh từng bài → <b>Duyệt</b> hoặc <b>Cần sửa</b>.
-        Chỉ bài đã duyệt đúng phiên bản mới vào <b>gói giao GPT</b>; bài đổi nội dung sẽ phải duyệt lại. ${esc(D.nguonNhomBai || '')}</div>
-      <div class="row" style="margin-top:8px"><span class="tag info">${dem.tong} bài · ${nhoms.length} nhóm</span><span class="tag ok">Đã duyệt ${dem.duyet}</span>
-        <span class="tag warn">Cần sửa ${dem.sua}</span><span class="tag warn">Còn lỗi ${dem.loi}</span></div>
-      <div style="margin-top:8px">${nhoms.map(([m, t]) => { const d = nbDem(D.NB.filter(r => r['Nhóm'] === m));
-        return `<span class="chip ${DB_.nhom === m ? 'on' : ''}" data-nh="${esc(m)}">${esc(t.replace('lockhixanh.vn · ', ''))} ${d.duyet}/${d.tong}</span>`; }).join('')}</div>
-      <div>${[['chua', 'Chưa duyệt'], ['loi', 'Còn lỗi'], ['sua', 'Cần sửa'], ['duyet', 'Đã duyệt'], ['', 'Tất cả']].map(([k, t]) => `<span class="chip ${DB_.loc === k ? 'on' : ''}" data-nl="${k}">${t}</span>`).join('')}
-        ${['', 'Sửa', 'Tạo', 'Bật'].map(k => `<span class="chip ${DB_.viec === k ? 'on' : ''}" data-nv="${k}">${k ? { Sửa: 'Sửa trang cũ', Tạo: 'Tạo mới (tách)', Bật: 'Bật hiện' }[k] : 'Mọi việc'}</span>`).join('')}</div>
+    <div class="card">
+      <div class="hn-tabs">${HN_TT.map(([k, t]) => `<a href="#" data-ht="${k}" class="${HN.tt === k ? 'on' : ''}">${t} <span class="${k === 'loi' && demTT[k] ? 'bad' : ''}">(${demTT[k] || 0})</span></a>`).join('')}</div>
+      <div class="muted" style="margin-bottom:8px">Bài web lockhixanh.vn theo luật 1 trang = 1 máy. Xem tiêu đề, SKU, giá → <b>Chỉnh sửa</b> hoặc <b>Duyệt</b>. Bài Chờ đăng → <b>Tải lên</b> = lấy gói giao GPT; lần cập nhật sau app tự đối chiếu web (Đã đăng / Đăng lỗi).</div>
+      <div class="row" style="gap:6px"><select id="hnNhom" style="max-width:220px"><option value="">Mọi hãng</option>${nhoms.map(([m, t]) => `<option value="${esc(m)}" ${HN.nhom === m ? 'selected' : ''}>${esc(t.replace('lockhixanh.vn · ', ''))} (${all.filter(b => b.nhom === m && b.trangThai === HN.tt).length})</option>`).join('')}</select>
+        <select id="hnViec" style="max-width:180px">${[['', 'Mọi việc'], ['Sửa', 'Sửa trang cũ'], ['Tạo', 'Tạo mới (tách)'], ['Bật', 'Bật hiện']].map(([k, t]) => `<option value="${k}" ${HN.viec === k ? 'selected' : ''}>${t}</option>`).join('')}</select>
+        <label class="muted"><input type="checkbox" id="hnLoi" ${HN.loi ? 'checked' : ''}> Chỉ bài còn lỗi</label>
+        <label class="muted"><input type="checkbox" id="hnGiaBT" ${HN.gia ? 'checked' : ''}> Chỉ giá bất thường</label>
+        <input id="hnQ" class="search" type="search" placeholder="Tìm tiêu đề / SKU / máy" value="${esc(HN.q)}" style="flex:1;min-width:180px"></div>
     </div>
-    <div class="card"><div class="row" style="justify-content:space-between"><h2 style="margin:0">${esc(nhoms.find(x => x[0] === DB_.nhom)[1])} · đã duyệt ${dn.duyet}/${dn.tong}</h2>
-      <button class="btn" id="nbGoi" ${dn.duyet ? '' : 'disabled'}>Gói giao GPT (${dn.duyet} bài đã duyệt)</button></div><div id="nbGoiBox"></div><div id="nbSau"></div></div>
-    <div id="nbRes"><div class="loading">Đang đọc bài…</div></div>`;
-  document.querySelectorAll('[data-nh]').forEach(c => c.onclick = () => { DB_.nhom = c.dataset.nh; DB_.n = 30; vDuyet(); });
-  document.querySelectorAll('[data-nl]').forEach(c => c.onclick = () => { DB_.loc = c.dataset.nl; DB_.n = 30; vDuyet(); });
-  document.querySelectorAll('[data-nv]').forEach(c => c.onclick = () => { DB_.viec = c.dataset.nv; DB_.n = 30; vDuyet(); });
-  $('nbGoi').onclick = nbGoi;
-  let ds = DB_.cache[DB_.nhom];
-  if (!ds) { try { ds = DB_.cache[DB_.nhom] = await call('nhomBai', TOKEN, DB_.nhom); } catch (e) { $('nbRes').innerHTML = '<div class="card err">' + esc(e.message) + '</div>'; return; } }
-  const sau = ds.find(b => (b.viec_sau || []).length || (b.cho_anh || []).length);
-  if (sau && $('nbSau')) $('nbSau').innerHTML = `<details style="margin-top:8px"><summary class="muted">Việc theo sau của nhóm (${(sau.viec_sau || []).length} chuyển hướng 301, ${(sau.cho_anh || []).length} trang chờ anh)</summary>
-    ${(sau.viec_sau || []).map(v => `<div class="muted">• ${esc(v.viec)}: ${esc(v.tu)} → ${esc(v.den)} (${esc(v.ly_do)})</div>`).join('')}
-    ${(sau.cho_anh || []).map(v => `<div class="muted">• Chờ anh: ${esc(v.ten)} (${esc(v.ly_do)})</div>`).join('')}</details>`;
-  const loc = b => { const d = nbQd(b), ok = d && d.qd === 'Duyệt';
-    return (!DB_.viec || b.viec.startsWith(DB_.viec)) && (DB_.loc === '' || (DB_.loc === 'chua' && !ok && !(d && d.qd === 'Sửa lại')) || (DB_.loc === 'loi' && b.loi) ||
-      (DB_.loc === 'sua' && d && d.qd === 'Sửa lại') || (DB_.loc === 'duyet' && ok)); };
-  const rows = ds.filter(loc);
-  $('nbRes').innerHTML = (rows.length ? rows.slice(0, DB_.n).map(nbCard).join('') : '<div class="card muted">Không có bài nào trong bộ lọc này.</div>') +
-    (rows.length > DB_.n ? `<div class="card"><button class="btn ghost" id="nbMore">Xem thêm ${rows.length - DB_.n} bài</button></div>` : '');
-  if ($('nbMore')) $('nbMore').onclick = () => { DB_.n += 30; vDuyet(); };
-  bindItems($('nbRes'));
-  $('nbRes').querySelectorAll('[data-nbq]').forEach(btn => btn.onclick = () => nbLuu(btn));
+    <div class="card" style="padding-top:8px">
+      <div class="hn-bar">${nut.join('')}<button class="btn ghost" data-hb="mau">Mẫu bài / mẫu giá</button>
+        <span class="muted">Đã chọn <b id="hnSoChon">${HN.chon.size}</b> / ${tong}</span><span style="flex:1"></span>
+        <span class="muted">${tong ? (HN.trang - 1) * HN_MOI_TRANG + 1 : 0}–${Math.min(HN.trang * HN_MOI_TRANG, tong)} / ${tong}</span>
+        <button class="btn ghost" data-hp="-1" ${HN.trang <= 1 ? 'disabled' : ''}>‹</button><button class="btn ghost" data-hp="1" ${HN.trang >= soTrang ? 'disabled' : ''}>›</button></div>
+      <div id="hnMenu"></div><div id="hnKq"></div>
+      <div class="scroll"><table class="hn-tbl"><tr><th style="width:28px"><input type="checkbox" id="hnAll"></th><th>Sản phẩm &amp; tiêu đề</th><th>SKU</th><th class="num">Giá</th><th class="hide-m">Cập nhật</th><th>Thao tác</th></tr>
+      ${trang.map(hnDong).join('') || '<tr><td colspan="6" class="muted">Không có bài.</td></tr>'}</table></div>
+    </div>`;
+  document.querySelectorAll('[data-ht]').forEach(a => a.onclick = e => { e.preventDefault(); HN.tt = a.dataset.ht; HN.trang = 1; HN.chon.clear(); vHopNhap(); });
+  $('hnNhom').onchange = e => { HN.nhom = e.target.value; HN.trang = 1; vHopNhap(); };
+  $('hnViec').onchange = e => { HN.viec = e.target.value; HN.trang = 1; vHopNhap(); };
+  $('hnLoi').onchange = e => { HN.loi = e.target.checked; HN.trang = 1; vHopNhap(); };
+  $('hnGiaBT').onchange = e => { HN.gia = e.target.checked; HN.trang = 1; vHopNhap(); };
+  $('hnQ').oninput = e => { HN.q = e.target.value; clearTimeout(vHopNhap.h); vHopNhap.h = setTimeout(() => { HN.trang = 1; vHopNhap().then(() => { const q = $('hnQ'); q.focus(); q.setSelectionRange(q.value.length, q.value.length); }); }, 300); };
+  document.querySelectorAll('[data-hp]').forEach(b => b.onclick = () => { HN.trang += +b.dataset.hp; vHopNhap(); window.scrollTo(0, 0); });
+  $('hnAll').onchange = e => { trang.forEach(b => e.target.checked ? HN.chon.add(b.ma) : HN.chon.delete(b.ma)); document.querySelectorAll('[data-hc]').forEach(c => c.checked = e.target.checked); $('hnSoChon').textContent = HN.chon.size; };
+  document.querySelectorAll('[data-hc]').forEach(c => c.onchange = () => { c.checked ? HN.chon.add(c.dataset.hc) : HN.chon.delete(c.dataset.hc); $('hnSoChon').textContent = HN.chon.size; });
+  document.querySelectorAll('[data-hs]').forEach(a => a.onclick = e => { e.preventDefault(); HN.sua = a.dataset.hs; vHopNhap(); window.scrollTo(0, 0); });
+  document.querySelectorAll('[data-ha]').forEach(a => a.onclick = e => { e.preventDefault(); hnHanhDong(a.dataset.ha, [a.dataset.ma]); });
+  document.querySelectorAll('[data-hl]').forEach(a => a.onclick = e => { e.preventDefault(); hnLichSu(a.dataset.hl); });
+  document.querySelectorAll('[data-hb]').forEach(b => b.onclick = () => hnNutBar(b.dataset.hb));
 }
-function nbCard(b) {
-  const d = nbQd(b), ok = d && d.qd === 'Duyệt', moi = b.viec.startsWith('Tạo');
-  const dem = (s, lo, hi) => { const n = String(s || '').length; return `<span class="muted" style="${n < lo || n > hi ? 'color:#a30000;font-weight:700' : ''}">(${n})</span>`; };
-  const web = !moi && !b.viec.startsWith('Bật') ? 'https://lockhixanh.vn/products/' + b.handle : '';
-  return `<div class="card" style="${ok ? 'border-color:#7cc59a' : b.loi ? 'border-color:#f2b632' : ''}">
-    <div class="row" style="justify-content:space-between"><div><b>${b.stt}. ${esc(b.may)}</b> <span class="tag ${moi ? 'info' : 'ok'}">${esc(b.viec)}</span>
-      ${b.dot ? '<span class="tag">' + esc(b.dot) + '</span>' : ''} <span class="muted">bán 90 ngày ${fmt(num(b.ban_90))}</span></div>
-      <div>${d ? `<span class="tag ${ok ? 'ok' : 'warn'}">${esc(d.qd)}${d.ghiChu ? ': ' + esc(d.ghiChu) : ''}</span>` : '<span class="tag">Chưa duyệt</span>'}</div></div>
-    <div class="scroll" style="margin-top:6px"><table>
-      <tr><th style="width:120px">Tiêu đề</th><td><b>${esc(b.tieu_de)}</b> ${dem(b.tieu_de, 10, 70)}</td></tr>
-      <tr><th>SEO title</th><td>${esc(b.seo_title)} ${dem(b.seo_title, 10, 60)}</td></tr>
-      <tr><th>Meta</th><td>${esc(b.meta_description)} ${dem(b.meta_description, 120, 155)}</td></tr>
-      <tr><th>URL</th><td class="muted">/products/${esc(b.handle)} ${web ? `<a href="${esc(web)}" target="_blank" rel="noopener">xem web ↗</a>` : ''}
-        ${b.id_haravan ? ` · <a href="https://lockhixanh.myharavan.com/admin/products/${esc(b.id_haravan)}" target="_blank" rel="noopener">admin ↗</a>` : ''}
-        ${b.ma_listing ? ' · <a href="#" data-lkx="' + esc(b.ma_listing) + '">' + esc(b.ma_listing) + '</a>' : ''}</td></tr></table></div>
-    <div class="scroll" style="margin-top:6px"><table><tr><th>Biến thể</th><th>SKU</th><th class="num">Giá web</th><th class="num hide-m">Shopee LKX từ</th><th class="hide-m">Nguồn giá</th></tr>
-      ${b.bien_the.map(v => `<tr><td>${esc(v.ten)}</td><td><a href="#" data-sku="${esc(v.sku)}"><span class="sku">${esc(v.sku)}</span></a>${(v.ung_vien || []).length ? '<div class="muted">khác: ' + v.ung_vien.map(esc).join(', ') + '</div>' : ''}</td>
-        <td class="num">${v.gia ? fmt(v.gia) : '<b style="color:#a30000">chưa có</b>'}</td><td class="num hide-m">${v.gia_shopee_lkx ? fmt(v.gia_shopee_lkx) : ''}</td><td class="muted hide-m">${esc(v.gia_nguon || '')}</td></tr>`).join('')}</table></div>
-    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">${(b.anh || []).slice(0, 8).map((a, i) => `<a href="${esc(nbAnh(a.url, 'large'))}" target="_blank" rel="noopener" title="${esc(a.alt)}">
-      <img loading="lazy" src="${esc(nbAnh(a.url, 'small'))}" alt="${esc(a.alt)}" referrerpolicy="no-referrer" style="width:64px;height:64px;object-fit:cover;border-radius:8px;border:1px solid var(--line)"></a>`).join('')}
-      <span class="muted" style="align-self:center">${(b.anh || []).length} ảnh${(b.anh || [])[0] ? ' · alt: ' + esc(b.anh[0].alt) : ''}</span></div>
-    ${b.loi ? '<div style="margin-top:6px">' + b.loi.split(' · ').map(x => '<span class="tag warn" style="background:#ffe1e1;color:#a30000;white-space:normal">' + esc(x) + '</span>').join(' ') + '</div>' : ''}
-    ${b.luu ? '<div style="margin-top:4px">' + b.luu.split(' · ').map(x => '<span class="tag warn" style="white-space:normal">' + esc(x) + '</span>').join(' ') + '</div>' : ''}
-    <div class="muted" style="margin-top:4px">Nguồn: ${(b.nguon || []).map(n => (n.ma ? esc(n.ma) + ' ' : '') + esc(n.ten.slice(0, 60)) + (n.so_may > 1 ? ' (' + n.so_may + ' máy)' : '')).join(' · ')} · SKU: ${esc(b.do_chac_sku || '')}</div>
-    <div class="row" style="margin-top:8px;align-items:center" data-nbbox="${esc(b.ma)}">
-      ${['Tiêu đề', 'SEO', 'Giá', 'SKU', 'Ảnh'].map(k => `<label class="muted"><input type="checkbox" value="${k}"> ${k} sai</label>`).join(' ')}
-      <input type="text" placeholder="Ghi chú cần sửa" style="flex:1;min-width:160px">
-      <button class="btn" data-nbq="Duyệt" data-ma="${esc(b.ma)}" data-ph="${esc(b.phien)}" ${b.loi ? 'disabled title="Còn lỗi — sửa trước"' : ''}>Duyệt</button>
-      <button class="btn ghost" data-nbq="Sửa lại" data-ma="${esc(b.ma)}" data-ph="${esc(b.phien)}">Cần sửa</button></div>
-  </div>`;
+function hnDong(b) {
+  const d = b.d, bt = d.bien_the || [];
+  const anh = (d.anh || [])[0];
+  return `<tr><td><input type="checkbox" data-hc="${esc(b.ma)}" ${HN.chon.has(b.ma) ? 'checked' : ''}></td>
+    <td><div class="hn-sp">${anh ? `<img loading="lazy" src="${esc(hnAnh(anh.url, 'small'))}" alt="" referrerpolicy="no-referrer">` : '<img alt="">'}
+      <div style="min-width:0"><div class="ten" data-hs="${esc(b.ma)}">${esc(d.tieu_de)}</div>
+      <div class="muted" style="font-size:12px">${esc(d.viec)} · ${esc(b.tenNhom.replace('lockhixanh.vn · ', ''))}${d.ma_listing ? ' · ' + esc(d.ma_listing) : ''}${d.ban_90 ? ' · bán 90 ngày ' + fmt(num(d.ban_90)) : ''}</div>
+      ${b.loi.length ? `<div><span class="tag" style="background:var(--bad-bg);color:var(--bad);white-space:normal" title="${esc(b.loi.join('\n'))}">${b.loi.length} lỗi: ${esc(b.loi[0])}${b.loi.length > 1 ? '…' : ''}</span></div>` : ''}
+      ${b.luu.some(x => x.startsWith('Giá bất thường')) ? '<span class="tag warn">giá bất thường</span>' : ''}
+      ${b.ketQua && ['dang_dang', 'da_dang', 'loi'].includes(b.trangThai) ? `<div class="muted" style="font-size:12px">${esc(b.ketQua)}</div>` : ''}</div></div></td>
+    <td>${bt.map(v => `<div class="hn-bt"><span class="sku">${esc(v.sku || '—')}</span><small>${esc(v.ten)}</small></div>`).join('') || '<span class="muted">—</span>'}</td>
+    <td class="num">${bt.map(v => `<div class="hn-bt">${v.gia ? '<b>' + hnGia(v.gia) + '</b>' : '<b style="color:var(--bad)">chưa có</b>'}<small>${v.gia_shopee_lkx ? 'Shopee LKX ' + fmt(v.gia_shopee_lkx) : '&nbsp;'}</small></div>`).join('')}</td>
+    <td class="hide-m muted" style="font-size:12px;white-space:nowrap">${esc(String(b.capNhat).slice(0, 16))}<br>${esc(b.nguoi || '')}</td>
+    <td class="hn-thao"><a data-hs="${esc(b.ma)}">Chỉnh sửa</a>
+      ${b.trangThai === 'nhap' ? `<a data-ha="duyet" data-ma="${esc(b.ma)}" ${b.loi.length ? 'style="color:var(--muted)" title="Còn lỗi — sửa trước"' : ''}>Duyệt</a><a data-ha="bo" data-ma="${esc(b.ma)}">Bỏ</a>` : ''}
+      ${b.trangThai === 'cho_dang' ? `<a data-ha="goi" data-ma="${esc(b.ma)}">Tải lên (GPT)</a>` : ''}
+      ${d.handle && !String(d.viec).startsWith('Tạo') ? `<a href="https://lockhixanh.vn/products/${esc(d.handle)}" target="_blank" rel="noopener">Xem web ↗</a>` : ''}
+      <a data-hl="${esc(b.ma)}">Lịch sử</a></td></tr>`;
 }
-async function nbLuu(btn) {
-  const box = btn.closest('[data-nbbox]'), sai = [...box.querySelectorAll('input[type=checkbox]:checked')].map(x => x.value);
-  const gc = [sai.length ? 'Sai: ' + sai.join(', ') : '', box.querySelector('input[type=text]').value.trim()].filter(Boolean).join(' · ');
-  if (btn.dataset.nbq === 'Sửa lại' && !gc) { toast('Đánh dấu phần sai hoặc ghi chú cần sửa gì.'); return; }
-  const khoa = btn.dataset.ma + '@' + btn.dataset.ph;
-  btn.disabled = true;
+async function hnHanhDong(viec, ds) {
+  if (!ds.length) { toast('Chưa chọn bài nào.'); return; }
+  const fn = { duyet: 'hopNhapDuyet', bo: 'hopNhapBo', trolai: 'hopNhapTroLai', khoiphuc: 'hopNhapKhoiPhuc', dadang: 'hopNhapDaDang' }[viec];
   try {
-    const r = await call('luuQuyetDinh', TOKEN, { loai: 'NHOM_BAI', khoa, qd: btn.dataset.nbq, ghiChu: gc, moTa: 'Duyệt trước đăng ' + btn.dataset.ma });
-    D.qd['NHOM_BAI|' + khoa] = { qd: r.qd, ghiChu: r.ghiChu, luc: r.luc };
-    toast(btn.dataset.nbq === 'Duyệt' ? 'Đã duyệt.' : 'Đã ghi cần sửa.'); const y = window.scrollY; await vDuyet(); window.scrollTo(0, y);
-  } catch (e) { toast(e.message); btn.disabled = false; }
+    if (viec === 'goi') return hnGoi(ds);
+    const r = await call(fn, TOKEN, ds);
+    const bq = Object.entries(r.boQua || {});
+    toast(`Xong ${r.ok.length} bài` + (bq.length ? `, bỏ qua ${bq.length}` : ''));
+    await hnTai(); HN.chon.clear(); await vHopNhap();
+    if (bq.length) $('hnKq').innerHTML = `<div class="card" style="background:var(--warn-bg)"><b>Bỏ qua ${bq.length} bài:</b>${bq.slice(0, 20).map(([m, l]) => `<div class="muted">${esc((HN.data.bai.find(b => b.ma === m) || { d: {} }).d.tieu_de || m)}: ${esc(l)}</div>`).join('')}</div>`;
+  } catch (e) { toast(e.message); }
 }
-async function nbGoi() {
-  const box = $('nbGoiBox'); box.innerHTML = '<div class="loading">Đang tạo gói…</div>';
+async function hnGoi(ds) {
   try {
-    const g = await call('nhomBaiGoi', TOKEN, DB_.nhom);
-    if (!g.so) { box.innerHTML = '<div class="muted">Chưa có bài nào được duyệt đúng phiên bản.</div>'; return; }
-    box.innerHTML = `<div class="muted" style="margin:8px 0">${g.so}/${g.tong} bài đã duyệt. Dán nguyên khối dưới cho GPT / Codex; bài chưa duyệt không có trong gói.</div>
-      <textarea id="nbText" style="width:100%;height:260px;font:12px/1.4 Menlo,monospace">${esc(g.text)}</textarea><button class="btn" id="nbCopy">Sao chép</button>`;
-    $('nbCopy').onclick = async () => { try { await navigator.clipboard.writeText($('nbText').value); toast('Đã sao chép gói giao GPT.'); } catch (e) { $('nbText').select(); document.execCommand('copy'); toast('Đã sao chép.'); } };
-  } catch (e) { box.innerHTML = '<div class="err">' + esc(e.message) + '</div>'; }
+    const g = await call('hopNhapGoi', TOKEN, ds);
+    if (!g.so) { toast('Không có bài Chờ đăng đúng phiên bản đã duyệt.'); return; }
+    await hnTai(); HN.chon.clear(); HN.tt = 'dang_dang'; await vHopNhap();
+    $('hnKq').innerHTML = `<div class="card"><b>Gói giao GPT: ${g.so} bài</b> (đã chuyển sang Đang đăng). Dán nguyên khối cho GPT / Codex.
+      <textarea id="hnGoiText" style="width:100%;height:240px;font:12px/1.4 Menlo,monospace;margin-top:6px">${esc(g.text)}</textarea><button class="btn" id="hnCopy">Sao chép</button></div>`;
+    $('hnCopy').onclick = async () => { try { await navigator.clipboard.writeText($('hnGoiText').value); } catch (e) { $('hnGoiText').select(); document.execCommand('copy'); } toast('Đã sao chép gói giao GPT.'); };
+  } catch (e) { toast(e.message); }
+}
+async function hnLichSu(ma) {
+  const b = HN.data.bai.find(x => x.ma === ma);
+  openPanel('Lịch sử · ' + (b ? b.d.tieu_de : ma), '<div class="loading">Đang đọc…</div>');
+  try { const ls = await call('hopNhapLichSu', TOKEN, ma);
+    $('pB').innerHTML = `<div class="card"><table><tr><th>Lúc</th><th>Người</th><th>Việc</th><th>Chi tiết</th></tr>${ls.map(x => `<tr><td class="muted">${esc(x.luc)}</td><td>${esc(x.nguoi)}</td><td>${esc(x.viec)}</td><td class="muted">${esc(x.chiTiet)}</td></tr>`).join('')}</table></div>`;
+  } catch (e) { $('pB').innerHTML = '<div class="err">' + esc(e.message) + '</div>'; }
+}
+function hnNutBar(k) {
+  const ds = [...HN.chon];
+  if (k === 'mau') return hnMau();
+  if (k !== 'sua') return hnHanhDong(k, ds);
+  const m = $('hnMenu');
+  if (m.innerHTML) { m.innerHTML = ''; return; }
+  m.innerHTML = `<div class="card" style="background:#f8fafd">
+    <b>Chỉnh sửa hàng loạt ${ds.length} bài đã chọn</b>${ds.length ? '' : ' <span class="muted">(chọn bài ở cột đầu trước)</span>'}
+    <div class="row" style="margin-top:8px;gap:6px"><button class="btn ghost" data-hm="giathieu">Áp mẫu giá cho ô chưa có giá</button><button class="btn ghost" data-hm="giatatca">Áp mẫu giá cho mọi biến thể</button>
+      <button class="btn ghost" data-hm="mauseo">Dựng lại SEO title + meta theo mẫu</button><button class="btn ghost" data-hm="mautieude">Dựng lại tiêu đề theo mẫu</button></div>
+    <div class="row" style="margin-top:8px;gap:6px"><select id="hnTCO" style="max-width:160px"><option value="tieu_de">Tiêu đề</option><option value="seo_title">SEO title</option><option value="meta_description">Meta</option><option value="mo_ta_html">Mô tả</option></select>
+      <input id="hnTim" type="text" placeholder="Tìm chữ" style="flex:1"><input id="hnThay" type="text" placeholder="Thay bằng" style="flex:1"><button class="btn ghost" data-hm="thay">Thay chữ</button></div></div>`;
+  m.querySelectorAll('[data-hm]').forEach(b => b.onclick = async () => {
+    if (!ds.length) { toast('Chưa chọn bài nào.'); return; }
+    try {
+      const v = b.dataset.hm; let r;
+      if (v === 'giathieu' || v === 'giatatca') r = await call('hopNhapApGia', TOKEN, ds, v === 'giathieu');
+      else if (v === 'mauseo') r = await call('hopNhapApMauBai', TOKEN, ds, ['seo_title', 'meta_description']);
+      else if (v === 'mautieude') r = await call('hopNhapApMauBai', TOKEN, ds, ['tieu_de']);
+      else r = await call('hopNhapThayChu', TOKEN, ds, $('hnTCO').value, $('hnTim').value, $('hnThay').value);
+      toast(`Đã sửa ${r.bai} bài` + (r.o != null ? ` (${r.o} giá)` : '') + '. Bài đã duyệt mà bị sửa sẽ về Hộp nháp.');
+      await hnTai(); await vHopNhap();
+    } catch (e) { toast(e.message); }
+  });
+}
+function hnMau() {
+  const m = HN.data.mau;
+  openPanel('Mẫu bài / mẫu giá', `<div class="card hn-form"><h2>Mẫu bài</h2>
+    <div class="muted">Chỗ chèn: {loai} (Màng lọc / Lõi lọc), {may}, {hang}, {cac_loai} (các loại biến thể), {bang_bien_the} (bảng loại – mã, chỉ dùng trong mô tả). Áp ở "Chỉnh sửa hàng loạt".</div>
+    ${[['tieu_de', 'Tiêu đề (≤70)'], ['seo_title', 'SEO title (≤60)'], ['meta_description', 'Meta description (120–155)']].map(([k, t]) => `<label>${t}</label><input type="text" data-mb="${k}" value="${esc(m.bai[k])}">`).join('')}
+    <label>Mô tả (HTML, không dùng H1)</label><textarea data-mb="mo_ta_html">${esc(m.bai.mo_ta_html)}</textarea></div>
+    <div class="card hn-form"><h2>Mẫu giá</h2><div class="muted">Giá web = giá Shopee thấp nhất của SKU ở shop chọn × hệ số % + cộng thêm, làm tròn.</div>
+    <label>Lấy giá Shopee của shop</label><select id="mgN">${[['lkx', 'Lọc Khí Xanh (LKX)'], ['hepa', 'hepa_hn'], ['mlx', 'manglocxanh (MLX)']].map(([k, t]) => `<option value="${k}" ${m.gia.nguon === k ? 'selected' : ''}>${t}</option>`).join('')}</select>
+    <div class="row" style="gap:8px"><div style="flex:1"><label>Hệ số %</label><input type="text" id="mgH" value="${m.gia.he_so}"></div><div style="flex:1"><label>Cộng thêm (₫)</label><input type="text" id="mgC" value="${m.gia.cong}"></div><div style="flex:1"><label>Làm tròn tới (₫)</label><input type="text" id="mgL" value="${m.gia.lam_tron}"></div></div>
+    <div style="margin-top:12px"><button class="btn" id="mgLuu">Lưu mẫu</button></div></div>`);
+  $('mgLuu').onclick = async () => {
+    const bai = {}; document.querySelectorAll('[data-mb]').forEach(i => bai[i.dataset.mb] = i.value);
+    try { HN.data.mau = await call('hopNhapLuuMau', TOKEN, { bai, gia: { nguon: $('mgN').value, he_so: $('mgH').value, cong: $('mgC').value, lam_tron: $('mgL').value } }); toast('Đã lưu mẫu.'); closePanel(); }
+    catch (e) { toast(e.message); }
+  };
+}
+/* ---- Trang chỉnh sửa một bài (như trang Chỉnh sửa sản phẩm của BigSeller) ---- */
+async function hnSua(ma) {
+  const b = HN.data && HN.data.bai.find(x => x.ma === ma);
+  if (!b) { HN.sua = null; return vHopNhap(); }
+  if (!HN.skuDs) { try { const t = await call('bangSku', TOKEN); HN.skuDs = objs(t.mlkk).map(x => x['SKU chuẩn']).filter(Boolean); } catch (e) { HN.skuDs = []; } }
+  const d = JSON.parse(JSON.stringify(b.d)); HN.f = d;
+  const tt = Object.fromEntries(HN_TT);
+  $('main').innerHTML = `
+    <div class="hn-top"><button class="btn ghost" id="hfVe">‹ Hộp nháp</button><b style="flex:1;min-width:200px">${esc(d.tieu_de)}</b>
+      <span class="tag info">${esc(tt[b.trangThai])}</span><span id="hfLoi"></span><button class="btn ghost" id="hfLuu">Lưu</button><button class="btn" id="hfDuyet">Lưu &amp; duyệt</button></div>
+    <div class="card hn-form"><h2>Thông tin cơ bản</h2>
+      <div class="row" style="gap:10px"><div style="flex:1;min-width:180px"><label>Việc</label><select data-f="viec">${['Sửa trang cũ', 'Tạo mới (tách từ trang gộp)', 'Bật hiện (đã nhập ẩn 22/10)'].map(v => `<option ${String(d.viec).startsWith(v.split(' (')[0]) ? 'selected' : ''}>${v}</option>`).join('')}${['Sửa trang cũ', 'Tạo mới (tách từ trang gộp)', 'Bật hiện (đã nhập ẩn 22/10)'].includes(d.viec) ? '' : `<option selected>${esc(d.viec)}</option>`}</select></div>
+        <div style="flex:1;min-width:180px"><label>Máy</label><input type="text" data-f="may" value="${esc(d.may)}"></div>
+        <div style="flex:1;min-width:140px"><label>ID Haravan ${d.id_haravan ? `<a href="https://lockhixanh.myharavan.com/admin/products/${esc(d.id_haravan)}" target="_blank" rel="noopener">admin ↗</a>` : ''}</label><input type="text" data-f="id_haravan" value="${esc(d.id_haravan || '')}"></div></div>
+      <label>Tiêu đề <span data-dem="tieu_de"></span></label><input type="text" data-f="tieu_de" value="${esc(d.tieu_de)}">
+      <label>URL: lockhixanh.vn/products/</label><input type="text" data-f="handle" value="${esc(d.handle)}">
+      <label>SEO title <span data-dem="seo_title"></span></label><input type="text" data-f="seo_title" value="${esc(d.seo_title)}">
+      <label>Meta description <span data-dem="meta_description"></span></label><input type="text" data-f="meta_description" value="${esc(d.meta_description)}">
+    </div>
+    <div class="card hn-form"><h2>Biến thể · SKU · giá</h2><datalist id="hfSku">${(HN.skuDs || []).map(s => `<option value="${esc(s)}">`).join('')}</datalist>
+      <div class="scroll"><table><tr><th>Tên biến thể</th><th>SKU</th><th class="num">Giá web (₫)</th><th class="num hide-m">Shopee LKX</th><th class="hide-m">Nguồn giá</th><th></th></tr><tbody id="hfBt"></tbody></table></div>
+      <button class="btn ghost" id="hfThemBt" style="margin-top:8px">+ Thêm biến thể</button></div>
+    <div class="card hn-form"><h2>Ảnh <span class="muted" style="font-weight:400">(ảnh 1 = ảnh bìa; vuông 1080×1080; alt ≤125)</span></h2><div class="hn-anh" id="hfAnh"></div>
+      <div class="row" style="gap:6px;margin-top:8px"><input type="text" id="hfUrl" placeholder="Dán URL ảnh (https://…)" style="flex:1"><button class="btn ghost" id="hfThemUrl">Thêm URL</button><button class="btn ghost" id="hfAnhNguon">Thêm từ nguồn ▾</button></div><div id="hfAnhNg"></div></div>
+    <div class="card hn-form"><h2>Mô tả</h2><div class="muted">Để trống = khi đăng giữ mô tả hiện tại (sửa trang cũ) hoặc mô tả tạm 1 câu (trang mới). Không dùng H1.</div>
+      <textarea data-f="mo_ta_html">${esc(d.mo_ta_html || '')}</textarea><details style="margin-top:6px"><summary class="muted">Xem trước</summary><iframe id="hfXem" sandbox="" style="width:100%;height:320px;border:1px solid var(--line);border-radius:8px;background:#fff"></iframe></details></div>
+    <div class="card"><h2>Nguồn</h2><div id="hfNguon"><div class="loading">Đang đọc nguồn…</div></div>
+      <div class="hn-form"><label>Thêm nguồn (như "Link nguồn" của BigSeller)</label><div class="row" style="gap:6px"><input type="text" id="hfNgNhan" placeholder="Tên (vd: tem máy, tài liệu hãng)" style="flex:1"><input type="text" id="hfNgUrl" placeholder="https://…" style="flex:2"><button class="btn ghost" id="hfNgThem">+ Thêm nguồn</button></div><div id="hfNgThemDs"></div></div></div>
+    <div class="card hn-form"><h2>Ghi chú</h2><input type="text" data-f="ghi_chu" value="${esc(d.ghi_chu || '')}" placeholder="Ghi chú nội bộ (không đăng)">
+      <div class="muted" style="margin-top:8px">Trang nguồn: ${(d.nguon || []).map(n => esc((n.ma ? n.ma + ' ' : '') + n.ten.slice(0, 60))).join(' · ') || '—'} · Độ chắc SKU: ${esc(d.do_chac_sku || '—')} · ${esc(d.dot || '')}</div></div>`;
+  const ve = () => { HN.sua = null; vHopNhap(); window.scrollTo(0, 0); };
+  $('hfVe').onclick = ve;
+  const demLai = () => { [['tieu_de', 10, 70], ['seo_title', 10, 60], ['meta_description', 120, 155]].forEach(([k, lo, hi]) => document.querySelector(`[data-dem="${k}"]`).innerHTML = hnDem(d[k], lo, hi));
+    const xem = $('hfXem'); if (xem) xem.srcdoc = '<meta charset=utf-8><style>body{font:14px/1.5 Arial;margin:12px}table{border-collapse:collapse}td,th{border:1px solid #ddd;padding:4px 8px}</style>' + (d.mo_ta_html || '<i>(trống)</i>'); };
+  document.querySelectorAll('[data-f]').forEach(i => i.oninput = () => { d[i.dataset.f] = i.value; demLai(); });
+  demLai();
+  const veBt = () => {
+    $('hfBt').innerHTML = (d.bien_the || []).map((v, i) => `<tr><td><input type="text" data-bt="${i}" data-k="ten" value="${esc(v.ten)}"></td>
+      <td><input type="text" list="hfSku" data-bt="${i}" data-k="sku" value="${esc(v.sku)}" style="font-family:Menlo,monospace">${(v.ung_vien || []).length ? '<div class="muted" style="font-size:11px">khác: ' + v.ung_vien.map(esc).join(', ') + '</div>' : ''}</td>
+      <td><input type="text" data-bt="${i}" data-k="gia" value="${v.gia ? fmt(v.gia) : ''}" style="text-align:right;${v.gia ? '' : 'border-color:var(--bad)'}"></td>
+      <td class="num hide-m muted">${v.gia_shopee_lkx ? fmt(v.gia_shopee_lkx) : ''}</td><td class="hide-m muted" style="font-size:12px">${esc(v.gia_nguon || '')}</td>
+      <td><a href="#" data-xbt="${i}">Xoá</a></td></tr>`).join('');
+    $('hfBt').querySelectorAll('[data-bt]').forEach(i => i.oninput = () => { const v = d.bien_the[+i.dataset.bt]; v[i.dataset.k] = i.dataset.k === 'gia' ? (parseInt(i.value.replace(/\D/g, ''), 10) || null) : i.value.trim(); });
+    $('hfBt').querySelectorAll('[data-xbt]').forEach(a => a.onclick = e => { e.preventDefault(); d.bien_the.splice(+a.dataset.xbt, 1); veBt(); });
+  };
+  veBt();
+  $('hfThemBt').onclick = () => { d.bien_the = d.bien_the || []; d.bien_the.push({ ten: '', sku: '', gia: null }); veBt(); };
+  const veAnh = () => {
+    $('hfAnh').innerHTML = (d.anh || []).map((a, i) => `<div class="o"><a href="${esc(hnAnh(a.url, 'large'))}" target="_blank" rel="noopener"><img src="${esc(hnAnh(a.url, 'medium'))}" alt="" referrerpolicy="no-referrer"></a>
+      <div class="nut"><a href="#" data-am="${i}" data-dx="-1">←</a><span class="muted">${i === 0 ? 'Bìa' : i + 1}</span><a href="#" data-am="${i}" data-dx="1">→</a><a href="#" data-ax="${i}">Xoá</a></div>
+      <input type="text" data-alt="${i}" value="${esc(a.alt || '')}" placeholder="alt"></div>`).join('') || '<div class="muted">Chưa có ảnh.</div>';
+    $('hfAnh').querySelectorAll('[data-am]').forEach(x => x.onclick = e => { e.preventDefault(); const i = +x.dataset.am, j = i + +x.dataset.dx; if (j < 0 || j >= d.anh.length) return; [d.anh[i], d.anh[j]] = [d.anh[j], d.anh[i]]; veAnh(); });
+    $('hfAnh').querySelectorAll('[data-ax]').forEach(x => x.onclick = e => { e.preventDefault(); d.anh.splice(+x.dataset.ax, 1); veAnh(); });
+    $('hfAnh').querySelectorAll('[data-alt]').forEach(x => x.oninput = () => d.anh[+x.dataset.alt].alt = x.value);
+  };
+  veAnh();
+  const themAnh = u => { d.anh = d.anh || []; if (d.anh.some(a => a.url === u)) { toast('Ảnh đã có.'); return; } d.anh.push({ url: u, alt: (d.tieu_de + ' – ảnh ' + (d.anh.length + 1)).slice(0, 125) }); veAnh(); };
+  $('hfThemUrl').onclick = () => { const u = $('hfUrl').value.trim(); if (!/^https?:\/\//.test(u)) { toast('URL ảnh phải bắt đầu bằng https://'); return; } themAnh(u); $('hfUrl').value = ''; };
+  let ng = null;
+  call('hopNhapNguon', TOKEN, ma).then(n => { ng = n;
+    $('hfNguon').innerHTML = `<h3>Trang web lockhixanh.vn (${n.web.length})</h3>${n.web.map(w => `<div class="muted">• <a href="https://lockhixanh.vn/products/${esc(w.handle)}" target="_blank" rel="noopener">${esc(w.ten)}</a> <a href="https://lockhixanh.myharavan.com/admin/products/${esc(w.id)}" target="_blank" rel="noopener">admin ↗</a> · ${esc(w.ly_do)} · ${w.so_anh} ảnh</div>`).join('') || '<div class="muted">—</div>'}
+      <h3>Listing Shopee có SKU này (${n.shopee.length})</h3>${n.shopee.map(x => `<div class="muted">• <a href="${esc(x.link)}" target="_blank" rel="noopener">${esc(x.ma)} · ${esc(x.shop)}</a> ${esc(x.ten.slice(0, 70))}<div style="margin-left:14px;font-size:12px">${x.phan_loai.slice(0, 4).map(esc).join(' | ')}</div></div>`).join('') || '<div class="muted">—</div>'}
+      ${n.pheu.length ? '<h3>Phễu Triển Khai</h3>' + n.pheu.map(x => `<div class="muted">• ${esc(x.ho)} (${esc(x.sku)}) · ${esc(x.buoc)}</div>`).join('') : ''}`;
+  }).catch(e => { $('hfNguon').innerHTML = '<div class="err">' + esc(e.message) + '</div>'; });
+  $('hfAnhNguon').onclick = () => {
+    const box = $('hfAnhNg');
+    if (box.innerHTML) { box.innerHTML = ''; return; }
+    if (!ng) { toast('Đang đọc nguồn, thử lại sau giây lát.'); return; }
+    box.innerHTML = `<div class="muted" style="margin:8px 0">Bấm ảnh để thêm (ảnh từ trang nguồn / trang cùng SKU trên web — URL công khai, đăng được bằng "Thêm từ URL").</div><div class="hn-anh">${ng.anh.map((a, i) => `<div class="o" data-ta="${i}" style="cursor:pointer"><img src="${esc(hnAnh(a.url, 'medium'))}" alt="" referrerpolicy="no-referrer"><div class="muted" style="font-size:11px">${esc(a.tu)}</div></div>`).join('') || '<div class="muted">Không có ảnh nguồn.</div>'}</div>`;
+    box.querySelectorAll('[data-ta]').forEach(o => o.onclick = () => themAnh(ng.anh[+o.dataset.ta].url));
+  };
+  const veNg = () => { $('hfNgThemDs').innerHTML = (d.nguon_them || []).map((x, i) => `<div class="muted">• <a href="${esc(x.url)}" target="_blank" rel="noopener">${esc(x.nhan || x.url)}</a> <a href="#" data-xng="${i}">xoá</a></div>`).join('');
+    $('hfNgThemDs').querySelectorAll('[data-xng]').forEach(a => a.onclick = e => { e.preventDefault(); d.nguon_them.splice(+a.dataset.xng, 1); veNg(); }); };
+  veNg();
+  $('hfNgThem').onclick = () => { const u = $('hfNgUrl').value.trim(); if (!/^https?:\/\//.test(u)) { toast('Link nguồn phải bắt đầu bằng https://'); return; } d.nguon_them = d.nguon_them || []; d.nguon_them.push({ nhan: $('hfNgNhan').value.trim(), url: u }); $('hfNgUrl').value = $('hfNgNhan').value = ''; veNg(); };
+  const luu = async duyet => {
+    try {
+      const r = await call('hopNhapLuu', TOKEN, ma, d);
+      await hnTai();
+      const nb = HN.data.bai.find(x => x.ma === ma);
+      if (duyet) {
+        if (nb.loi.length) { toast('Đã lưu, chưa duyệt được: ' + nb.loi[0]); }
+        else { await call('hopNhapDuyet', TOKEN, [ma]); await hnTai(); toast('Đã lưu và duyệt.'); return ve(); }
+      } else toast(r.doi.length ? 'Đã lưu: ' + r.doi.join(', ') + (r.trangThai === 'nhap' && b.trangThai !== 'nhap' ? ' — bài về Hộp nháp, cần duyệt lại' : '') : 'Không có gì thay đổi.');
+      $('hfLoi').innerHTML = nb.loi.length ? `<span class="tag" style="background:var(--bad-bg);color:var(--bad);white-space:normal">${nb.loi.length} lỗi: ${esc(nb.loi.join(' · '))}</span>` : '<span class="tag ok">Không lỗi</span>';
+    } catch (e) { toast(e.message); }
+  };
+  $('hfLuu').onclick = () => luu(false);
+  $('hfDuyet').onclick = () => luu(true);
+  $('hfLoi').innerHTML = b.loi.length ? `<span class="tag" style="background:var(--bad-bg);color:var(--bad);white-space:normal" title="${esc(b.loi.join('\n'))}">${b.loi.length} lỗi: ${esc(b.loi[0])}</span>` : '<span class="tag ok">Không lỗi</span>';
 }
 
 /* ============ Câu hỏi / việc ============ */
