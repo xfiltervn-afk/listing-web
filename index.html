@@ -178,6 +178,8 @@
       <button data-v="sp">Shopee</button>
       <button data-v="tt">TikTok</button>
       <button data-v="web">Web Xfilter.vn</button>
+      <button data-v="lkx">Web Lọc Khí Xanh</button>
+      <button data-v="pheu">Phễu Triển Khai</button>
       <button data-v="cho">Câu hỏi / việc <span class="badge hidden" id="choBadge"></span></button>
     </nav>
   </header>
@@ -357,6 +359,12 @@ function prep() {
   D.LIST.forEach(l => l._k = norm(l['Tên listing'] + ' ' + l['SKU chuẩn'] + ' ' + l['Mã listing'] + ' ' + l['Shop'] + ' ' + (l['Code listing'] || '')));
   D.TRANG.forEach(p => p._k = norm(p['Tên trang'] + ' ' + p['Hãng xe'] + ' ' + p['Dòng xe'] + ' ' + p['SKU'] + ' ' + p['URL (handle)'] + ' ' + (p['Mã listing'] || '')));
   D.shops = [...new Set(D.LIST.map(l => l['Shop']).filter(Boolean))];
+  D.LKX_T = objs(D.lkxTrang); D.LKX_B = objs(D.lkxBt); D.PHEU = objs(D.pheu);
+  D.PHEU.forEach(x => x._k = norm(x['SKU'] + ' ' + x['Thương hiệu'] + ' ' + x['Model máy (SKU_MLKK)'] + ' ' + x['Web LKX'] + ' ' + x['Shopee hepa_hn'] + ' ' + x['Loại lọc']));
+  D.LKX_T.forEach(p => {
+    p._bt = D.LKX_B.filter(b => b['Code listing'] === p['Code listing']);
+    p._k = norm(p['Tên trang'] + ' ' + p['Code listing'] + ' ' + p['Hãng'] + ' ' + p['Handle'] + ' ' + p['SKU'] + ' ' + p._bt.map(b => b['Biến thể'] + ' ' + b['SKU trên web']).join(' '));
+  });
 }
 function shopUrl(shop, id) { const s = D.shopIds[shop]; return s && id ? 'https://shopee.vn/product/' + s + '/' + id : ''; }
 function editUrl(id) { return id ? 'https://banhang.shopee.vn/portal/product/' + id : ''; }
@@ -383,7 +391,7 @@ function render() {
   document.querySelectorAll('#nav button').forEach(b => b.classList.toggle('on', b.dataset.v === VIEW));
   const p = pending(); const bd = $('choBadge');
   bd.textContent = p.all; bd.classList.toggle('hidden', !p.all);
-  ({ tq: vTongQuan, sku: vSku, tc: vTraCuu, sp: vShopee, tt: vTiktok, web: vWeb, cho: vCho })[VIEW]();
+  ({ tq: vTongQuan, sku: vSku, tc: vTraCuu, sp: vShopee, tt: vTiktok, web: vWeb, lkx: vLkx, pheu: vPheu, cho: vCho })[VIEW]();
   window.scrollTo(0, 0);
 }
 
@@ -406,6 +414,8 @@ function vTongQuan() {
       <div class="stat click" data-go="tc"><div class="n">${fmt(D.SKU.length)}</div><div class="l">SKU chuẩn · ${fmt(skuCheck)} cần kiểm tra</div></div>
       <div class="stat click" data-go="web"><div class="n">${fmt(P.length)}</div><div class="l">Trang web dự kiến · ${fmt(ready)} sẵn sàng</div></div>
       <div class="stat"><div class="n">${fmt(D.BT.length)}</div><div class="l">Biến thể web</div></div>
+      ${D.PHEU.length ? `<div class="stat click" data-go="pheu"><div class="n">${fmt(D.PHEU.length)}</div><div class="l">SKU trong Phễu Triển Khai · ${fmt(D.PHEU.filter(x => pheuBuoc(x) === 5).length)} chờ anh duyệt</div></div>` : ''}
+      ${D.LKX_T.length ? `<div class="stat click" data-go="lkx"><div class="n">${fmt(D.LKX_T.length)}</div><div class="l">Trang web Lọc Khí Xanh · ${fmt(D.LKX_B.filter(b => !b['SKU chuẩn']).length)} biến thể chưa ghép SKU</div></div>` : ''}
       <div class="stat click" data-go="cho" style="${p.all ? 'border-color:#f2b632' : ''}"><div class="n">${fmt(p.all)}</div><div class="l">Câu hỏi / việc chưa xong</div></div>
     </div>
     <div class="card"><h2>Theo shop Shopee</h2><div class="scroll"><table>
@@ -453,6 +463,7 @@ function results() {
     .sort((a, b) => (flat(a['SKU chuẩn']) === qf ? -1 : 0) - (flat(b['SKU chuẩn']) === qf ? -1 : 0)).slice(0, 40);
   const lists = D.LIST.filter(l => (!TC.shop || l['Shop'] === TC.shop) && words.every(w => l._k.indexOf(w) >= 0)).slice(0, 80);
   const pages = D.TRANG.filter(p => words.every(w => p._k.indexOf(w) >= 0)).slice(0, 30);
+  const lkx = D.LKX_T.filter(p => words.every(w => p._k.indexOf(w) >= 0)).slice(0, 30);
   box.innerHTML = `
     <div class="card"><h2>SKU (${skus.length}${skus.length === 40 ? '+' : ''})</h2>
       ${skus.length ? skus.map(s => `<div class="item" data-sku="${esc(s['SKU chuẩn'])}">
@@ -465,7 +476,8 @@ function results() {
       <div style="margin-top:10px"><button class="btn ghost" id="deepBtn">Tìm sâu trong 9.211 phân loại</button></div>
       <div id="deep"></div>
     </div>
-    ${pages.length ? `<div class="card"><h2>Trang web dự kiến (${pages.length})</h2>${pages.map(pageItem).join('')}</div>` : ''}`;
+    ${pages.length ? `<div class="card"><h2>Trang web dự kiến (${pages.length})</h2>${pages.map(pageItem).join('')}</div>` : ''}
+    ${lkx.length ? `<div class="card"><h2>Web Lọc Khí Xanh (${lkx.length})</h2>${lkx.map(lkxItem).join('')}</div>` : ''}`;
   bindItems(box);
   $('deepBtn').onclick = deepSearch;
 }
@@ -489,6 +501,7 @@ function bindItems(root) {
   root.querySelectorAll('[data-sku]').forEach(el => el.onclick = () => openSku(el.dataset.sku));
   root.querySelectorAll('[data-list]').forEach(el => el.onclick = () => openListing(el.dataset.list));
   root.querySelectorAll('[data-page]').forEach(el => el.onclick = () => openPage(el.dataset.page));
+  root.querySelectorAll('[data-lkx]').forEach(el => el.onclick = e => { e.preventDefault(); openLkx(el.dataset.lkx); });
 }
 async function deepSearch() {
   const box = $('deep'); box.innerHTML = '<div class="loading">Đang tìm trong phân loại…</div>';
@@ -520,6 +533,7 @@ async function openSku(sku) {
   const s = D.SKU.find(x => x['SKU chuẩn'] === sku) || {};
   const shopCols = Object.keys(s).filter(k => /^Listing ở /.test(k));
   const webBt = D.BT.filter(b => flat(b['SKU']) === flat(sku));
+  const lkxBt = D.LKX_B.filter(b => b['SKU chuẩn'] && flat(b['SKU chuẩn']) === flat(sku));
   openPanel('SKU ' + sku, `
     <div class="card" id="skuHead"><div><span class="sku" style="font-size:20px">${esc(sku)}</span> ${statusTag(s['Trạng thái'])}</div>
       <div class="muted">${esc(s['Dòng hàng'])} · ${esc(s['Loại lọc'])}${s['Gồm mã cũ'] ? ' · gồm mã cũ: ' + esc(s['Gồm mã cũ']) : ''}</div>
@@ -531,13 +545,18 @@ async function openSku(sku) {
     <div class="card"><h2>Trên web dự kiến (${webBt.length} biến thể)</h2>
       ${webBt.length ? `<div class="scroll"><table><tr><th>Trang</th><th>Đời xe</th><th>Bản lọc / động cơ</th><th class="num">Giá</th></tr>
       ${webBt.map(b => { const p = D.TRANG.find(x => x['Tên trang'] === b['Tên trang']); return `<tr><td><div class="item" style="padding:0;border:0" data-page="${esc(p ? p['URL (handle)'] : '')}">${esc(b['Tên trang'])}</div> ${statusTag(b['Trạng thái trang'])}</td><td>${esc(b['Đời xe'])}</td><td>${esc(b['Bản lọc / Động cơ'])}</td><td class="num">${esc(b['Giá'])}</td></tr>`; }).join('')}</table></div>`
-      : '<div class="muted">SKU này chưa có trong danh sách web.</div>'}</div>`);
+      : '<div class="muted">SKU này chưa có trong danh sách web.</div>'}</div>
+    <div class="card ${lkxBt.length ? '' : 'hidden'}" id="skuLkx"><h2>Trên web Lọc Khí Xanh (${lkxBt.length} biến thể)</h2>
+      ${lkxBt.length ? `<div class="scroll"><table><tr><th>Trang</th><th>Biến thể</th><th class="num">Giá</th><th>Cách ghép</th></tr>
+      ${lkxBt.map(b => `<tr><td><a href="#" data-lkx="${esc(b['Code listing'])}"><span class="sku">${esc(b['Code listing'])}</span></a> ${esc(b['Tên trang'])}</td><td>${esc(b['Biến thể'])}</td><td class="num">${esc(b['Giá'])}</td><td>${lkxCach(b)}</td></tr>`).join('')}</table></div>`
+      : '<div class="muted">SKU này chưa có trang nào trên lockhixanh.vn (hoặc biến thể chưa ghép SKU).</div>'}</div>`);
   bindItems($('pB'));
   call('thongTinSku', TOKEN, sku).then(g => {
     const box = $('skuGoc'); if (!box) return;
     if (!g) { box.innerHTML = '<div class="muted">SKU này chưa có trong file SKU gốc.</div>'; return; }
     const row = (k, v) => v ? `<tr><th style="width:34%">${esc(k)}</th><td>${v}</td></tr>` : '';
     if (g._bang === 'SKU_MLKK') {
+      if ($('skuLkx') && D.LKX_T.length) $('skuLkx').classList.remove('hidden');     // SKU cụm MLKK: luôn cho biết có trên web LKX không
       // Phần đầu khung lấy CHÍNH hàng SKU_MLKK (cùng tập mã cũ với danh sách đang bán), không trộn THEO_SKU cũ (Note 35)
       const head = $('skuHead');
       if (head) head.innerHTML = `<div><span class="sku" style="font-size:20px">${esc(g['SKU chuẩn'])}</span> <span class="tag info">Phụ kiện MLKK</span></div>
@@ -1040,6 +1059,182 @@ function vWeb() {
   document.querySelectorAll('[data-st]').forEach(c => c.onclick = () => { WB.st = c.dataset.st; vWeb(); });
   document.querySelectorAll('[data-loai]').forEach(c => c.onclick = () => { WB.loai = c.dataset.loai; vWeb(); });
   draw();
+}
+
+/* ============ Web Lọc Khí Xanh (Haravan lockhixanh.vn, kênh riêng cụm Phụ kiện MLKK — 26/10/2026) ============ */
+let LK = { q: '', hang: '', loc: '' };
+const LK_LOC = { '': 'Mọi trang', chua: 'Có biến thể chưa ghép SKU', tach: 'Nên tách trang (máy khác SKU)', goi: 'Có SKU gợi ý (web chưa ghi SKU)', du: 'Đủ SKU trên web' };
+function lkxAnh(u, co) { return u ? String(u).replace(/^\/\//, 'https://').replace(/(\.[a-z]+)(\?.*)?$/i, '_' + co + '$1') : ''; }
+function lkxLoai(b) { return b['SKU trên web'] ? 'web' : b['SKU chuẩn'] ? 'goi' : 'chua'; }
+function lkxCach(b) {
+  const l = lkxLoai(b), c = b['Cách ghép'] || '';
+  return `<span class="tag ${l === 'web' ? (/mã lạ/.test(c) ? 'warn' : 'ok') : l === 'goi' ? 'info' : 'warn'}" style="white-space:normal">${esc(c)}</span>` +
+    (b['Ứng viên khác'] ? `<div class="muted">${esc(b['Ứng viên khác'])}</div>` : '');
+}
+function lkxLoc(p, loc) {
+  if (loc === 'chua') return p._bt.some(b => !b['SKU chuẩn']);
+  if (loc === 'tach') return p._bt.some(b => /tách trang/.test(b['Cách ghép']));
+  if (loc === 'goi') return p._bt.some(b => lkxLoai(b) === 'goi');
+  if (loc === 'du') return p._bt.length && p._bt.every(b => lkxLoai(b) === 'web');
+  return true;
+}
+function lkxItem(p) {
+  const chua = p._bt.filter(b => !b['SKU chuẩn']).length;
+  return `<div class="item" data-lkx="${esc(p['Code listing'])}" style="display:flex;gap:10px;align-items:flex-start">
+    ${p['Ảnh bìa'] ? `<img loading="lazy" alt="" src="${esc(lkxAnh(p['Ảnh bìa'], 'small'))}" referrerpolicy="no-referrer" style="width:56px;height:56px;object-fit:cover;border-radius:8px;flex:none;background:var(--chip)">` : ''}
+    <div style="min-width:0"><div class="t"><span class="sku" style="color:var(--brand-2)">${esc(p['Code listing'])}</span> ${esc(p['Tên trang'])}
+      ${p['Hiển thị'] !== 'Có' ? '<span class="tag warn">Ẩn</span>' : ''}</div>
+    <div class="muted">${esc(p['Hãng'])} · ${esc(p['Số biến thể'])} biến thể · ${khoangGia(p['Giá thấp nhất'], p['Giá cao nhất'])} · ${esc(p['Số ảnh'])} ảnh
+      ${p['SKU'] ? ' · SKU: <span class="sku">' + esc(p['SKU']) + '</span>' : ''}
+      ${chua ? ' <span class="tag warn">' + chua + ' chưa ghép SKU</span>' : ''}${p._bt.some(b => /tách trang/.test(b['Cách ghép'])) ? ' <span class="tag warn">nên tách trang</span>' : ''}</div></div></div>`;
+}
+function vLkx() {
+  if (!D.LKX_T.length) {
+    $('main').innerHTML = '<div class="card muted">Chưa có dữ liệu web Lọc Khí Xanh. Máy chủ chạy <b>python3 .work/web_lkx.py tai</b> rồi nạp lại (tự chạy cùng lượt cập nhật Shopee 03:30 / 13:30).</div>';
+    return;
+  }
+  const dem = {}; D.LKX_T.forEach(p => { const k = p['Hãng'] || '—'; dem[k] = (dem[k] || 0) + 1; });
+  const hangs = Object.keys(dem).sort((a, b) => dem[b] - dem[a]);
+  const B = D.LKX_B, nWeb = B.filter(b => lkxLoai(b) === 'web').length, nGoi = B.filter(b => lkxLoai(b) === 'goi').length;
+  $('main').innerHTML = `
+    <div class="card">
+      <div class="row"><input id="lq" class="search" type="search" placeholder="Tìm mã WLKX / tên máy / hãng / SKU" value="${esc(LK.q)}"></div>
+      <div style="margin-top:8px"><span class="chip ${LK.hang ? '' : 'on'}" data-lh="">Mọi hãng</span>${hangs.map(h => `<span class="chip ${LK.hang === h ? 'on' : ''}" data-lh="${esc(h)}">${esc(h)} ${dem[h]}</span>`).join('')}</div>
+      <div>${Object.keys(LK_LOC).map(k => `<span class="chip ${LK.loc === k ? 'on' : ''}" data-ll="${k}">${LK_LOC[k]}</span>`).join('')}</div>
+      <div class="row" style="margin-top:8px"><span class="tag info">${D.LKX_T.length} trang · ${B.length} biến thể</span>
+        <span class="tag ok">SKU trên web: ${nWeb}</span><span class="tag info">SKU gợi ý: ${nGoi}</span><span class="tag warn">Chưa ghép: ${B.length - nWeb - nGoi}</span></div>
+      <div class="muted" style="margin-top:6px">Web đang chạy lockhixanh.vn (Haravan), kênh riêng của cụm Phụ kiện MLKK, tách khỏi web Xfilter.vn và Shopee LKX.
+        SKU <b>gợi ý</b> lấy theo tên máy trên phân loại Shopee MLKK đang bán: chỉ để tham khảo, chưa ghi lên web. Mã WLKX cấp một lần theo ID Haravan, không đổi khi đổi tên.
+        ${esc(D.nguonLkx || '')}</div>
+    </div>
+    <div class="card" id="lres"></div>`;
+  const draw = () => {
+    const words = norm(LK.q).split(' ').filter(Boolean);
+    const rows = D.LKX_T.filter(p => (!LK.hang || (p['Hãng'] || '—') === LK.hang) && lkxLoc(p, LK.loc) && words.every(w => p._k.indexOf(w) >= 0));
+    $('lres').innerHTML = `<h2>${rows.length} trang</h2>` + (rows.length ? rows.map(lkxItem).join('') : '<div class="muted">Không có trang khớp.</div>');
+    bindItems($('lres'));
+  };
+  $('lq').oninput = () => { LK.q = $('lq').value; clearTimeout(vLkx.h); vLkx.h = setTimeout(draw, 150); };
+  document.querySelectorAll('[data-lh]').forEach(c => c.onclick = () => { LK.hang = c.dataset.lh; vLkx(); });
+  document.querySelectorAll('[data-ll]').forEach(c => c.onclick = () => { LK.loc = c.dataset.ll; vLkx(); });
+  draw();
+}
+function openLkx(code) {
+  const p = D.LKX_T.find(x => x['Code listing'] === code);
+  if (!p) return;
+  const web = 'https://lockhixanh.vn/products/' + encodeURIComponent(p['Handle']), admin = 'https://lockhixanh.myharavan.com/admin/products/' + encodeURIComponent(p['ID Haravan']);
+  openPanel(code + ' · web Lọc Khí Xanh', `
+    <div class="card" style="display:flex;gap:12px;align-items:flex-start">
+      ${p['Ảnh bìa'] ? `<img alt="" src="${esc(lkxAnh(p['Ảnh bìa'], 'medium'))}" referrerpolicy="no-referrer" style="width:120px;height:120px;object-fit:cover;border-radius:10px;flex:none;background:var(--chip)">` : ''}
+      <div style="min-width:0"><div class="t"><b>${esc(p['Tên trang'])}</b></div>
+        <div class="muted">${esc(p['Hãng'])} · ${esc(p['Loại'])} · ${p['Hiển thị'] === 'Có' ? 'đang hiện' : 'đang ẩn'} · ${esc(p['Số ảnh'])} ảnh · tạo ${esc(p['Tạo ngày'])}</div>
+        <div class="muted">Handle: ${esc(p['Handle'])} · ID Haravan ${esc(p['ID Haravan'])}</div>
+        <span class="links"><a href="${esc(web)}" target="_blank" rel="noopener">Mở web ↗</a><a href="${esc(admin)}" target="_blank" rel="noopener">Sửa (admin Haravan) ↗</a></span></div></div>
+    <div class="card"><h2>Biến thể (${p._bt.length})</h2><div class="scroll"><table>
+      <tr><th>Biến thể</th><th class="num">Giá</th><th class="num hide-m">Giá so sánh</th><th class="num hide-m">KL (g)</th><th>SKU trên web</th><th>SKU chuẩn</th><th>Cách ghép</th></tr>
+      ${p._bt.map(b => `<tr><td>${esc(b['Biến thể'])}</td><td class="num">${esc(b['Giá'])}</td><td class="num hide-m">${esc(b['Giá so sánh'])}</td><td class="num hide-m">${esc(b['Khối lượng (g)'])}</td>
+        <td>${b['SKU trên web'] ? '<span class="sku">' + esc(b['SKU trên web']) + '</span>' : '<span class="muted">trống</span>'}</td>
+        <td>${b['SKU chuẩn'] ? `<a href="#" data-skul="${esc(b['SKU chuẩn'])}"><span class="sku">${esc(b['SKU chuẩn'])}</span></a>` : ''}</td><td>${lkxCach(b)}</td></tr>`).join('')}
+    </table></div>
+    <div class="muted" style="margin-top:6px">Bấm SKU chuẩn để xem SKU đó đang bán ở listing Shopee nào. App không sửa web Lọc Khí Xanh; sửa trên admin Haravan.</div></div>`);
+  $('pB').querySelectorAll('[data-skul]').forEach(el => el.onclick = e => { e.preventDefault(); openSku(el.dataset.skul); });
+}
+
+/* ============ Phễu Triển Khai (template listing MLKK, anh Trung 26/10/2026 — Note 54) ============ */
+const PHEU_BUOC = ['Thu thập', 'Xác minh', 'Soạn nội dung', 'Kiểm tra', 'Chờ anh duyệt', 'Sẵn sàng đăng'];
+const PHEU_GIAI = ['Dữ kiện mới là ỨNG VIÊN lấy từ web / Shopee / SKU_MLKK; chưa có hồ sơ dữ liệu gốc.',
+  'Đã có hồ sơ; còn dữ kiện bắt buộc chờ anh xác nhận (kích thước, thành phần…).', 'Hồ sơ đủ; chờ Codex soạn nội dung + bộ ảnh theo khuôn.',
+  'Có bản nháp; còn mục chặn (ảnh thật, chính sách shop, độ dài, từ cấm…).', 'Đạt kiểm tra; anh duyệt đúng mã phiên bản.', 'Anh đã duyệt; xuất file đăng, đăng là việc giao riêng.'];
+let PH = { buoc: 0, nhom: '', q: '', n: 80 };
+function pheuMa(x) { return String(x['Hồ sơ'] || '').split('/').pop().replace(/\.json$/, ''); }
+function pheuBuoc(x) {
+  const b = parseInt(x['Giai đoạn'], 10) || 1;
+  if (b === 5) { const d = decision('PHEU', pheuMa(x) + '@' + x['Phiên bản']); if (d && d.qd === 'Duyệt') return 6; }
+  return b;
+}
+function pheuTag(b) { return `<span class="tag ${b >= 6 ? 'ok' : b >= 4 ? 'info' : 'warn'}">${b}. ${PHEU_BUOC[b - 1]}</span>`; }
+function vPheu() {
+  if (!D.PHEU.length) { $('main').innerHTML = '<div class="card muted">Chưa có dữ liệu Phễu Triển Khai (cần bảng web Lọc Khí Xanh + SKU_MLKK). Nạp lại dữ liệu trên máy chủ.</div>'; return; }
+  const dem = [0, 0, 0, 0, 0, 0]; D.PHEU.forEach(x => dem[pheuBuoc(x) - 1]++);
+  const max = Math.max(...dem, 1);
+  $('main').innerHTML = `
+    <div class="card"><h2>Phễu Triển Khai · Màng lọc + lõi lọc không khí</h2>
+      <div class="muted" style="margin-bottom:8px">Nguồn: web lockhixanh.vn + Shopee hepa_hn. Mỗi SKU đi qua 6 bước của template listing; chỉ bước 6 mới được xuất file đăng. ${esc(D.nguonPheu || '')}</div>
+      ${PHEU_BUOC.map((t, i) => `<div class="item" data-pb="${i + 1}" style="padding:6px 0;border:0;${PH.buoc === i + 1 ? 'font-weight:700' : ''}">
+        <div style="display:flex;gap:10px;align-items:center"><div style="width:150px;flex:none">${i + 1}. ${t}</div>
+        <div style="flex:1;background:var(--chip);border-radius:6px;height:22px;overflow:hidden"><div style="width:${Math.max(dem[i] / max * 100, dem[i] ? 2 : 0)}%;height:100%;background:var(--brand-2)"></div></div>
+        <div class="num" style="width:44px;text-align:right">${dem[i]}</div></div>
+        <div class="muted hide-m" style="margin-left:160px">${PHEU_GIAI[i]}</div></div>`).join('')}
+      <div style="margin-top:8px"><span class="chip ${PH.buoc ? '' : 'on'}" data-pb="0">Mọi bước</span>
+        ${['', 'Màng lọc', 'Lõi lọc'].map(n => `<span class="chip ${PH.nhom === n ? 'on' : ''}" data-pn="${n}">${n || 'Màng + lõi'}</span>`).join('')}</div>
+      <div class="row" style="margin-top:8px"><input id="phq" class="search" type="search" placeholder="Tìm SKU / hãng / model / mã listing" value="${esc(PH.q)}"></div>
+    </div>
+    <div class="card" id="phres"></div>`;
+  const draw = () => {
+    const w = norm(PH.q).split(' ').filter(Boolean);
+    const rows = D.PHEU.filter(x => (!PH.buoc || pheuBuoc(x) === PH.buoc) && (!PH.nhom || x['Nhóm'] === PH.nhom) && w.every(k => x._k.indexOf(k) >= 0));
+    $('phres').innerHTML = `<h2>${rows.length} SKU <span class="muted" style="font-weight:400">· xếp theo bước rồi số bán 90 ngày</span></h2>` + rows.slice(0, PH.n).map(x => `
+      <div class="item" data-ph="${esc(x['SKU'])}"><div class="t"><span class="sku">${esc(x['SKU'])}</span> ${pheuTag(pheuBuoc(x))} <span class="muted">${esc(x['Nhóm'])} · ${esc(x['Loại lọc'])} · ${esc(x['Thương hiệu'] || 'chưa rõ hãng')}</span></div>
+      <div class="muted">Bán 90 ngày: <b>${fmt(num(x['Bán 90 ngày']))}</b> · web: ${x['Web LKX'] ? esc(x['Web LKX'].split(', ').length + ' trang') + (x['Giá web'] ? ' (' + esc(x['Giá web']) + ')' : '') : '<b>chưa có trang</b>'}
+        · hepa_hn: ${x['Shopee hepa_hn'] ? esc(x['Shopee hepa_hn'].split(', ').length + ' listing') + (x['Giá hepa_hn'] ? ' (' + esc(x['Giá hepa_hn']) + ')' : '') : 'không bán'}
+        ${x['Model máy (SKU_MLKK)'] ? ' · model: ' + esc(String(x['Model máy (SKU_MLKK)']).slice(0, 60)) : ''}
+        ${x['Mục chặn'] !== '' && x['Mục chặn'] != null ? ' · <span class="tag warn">' + esc(x['Mục chặn']) + ' mục chặn</span>' : ''}${x['Chờ xác nhận'] ? ' <span class="tag warn">' + esc(x['Chờ xác nhận']) + ' chờ anh</span>' : ''}</div></div>`).join('') +
+      (rows.length > PH.n ? `<button class="btn ghost" id="phMore">Xem thêm ${rows.length - PH.n}</button>` : '');
+    $('phres').querySelectorAll('[data-ph]').forEach(el => el.onclick = () => openPheu(el.dataset.ph));
+    if ($('phMore')) $('phMore').onclick = () => { PH.n += 200; draw(); };
+  };
+  $('phq').oninput = () => { PH.q = $('phq').value; PH.n = 80; clearTimeout(vPheu.h); vPheu.h = setTimeout(draw, 150); };
+  document.querySelectorAll('[data-pb]').forEach(c => c.onclick = () => { PH.buoc = +c.dataset.pb; PH.n = 80; vPheu(); });
+  document.querySelectorAll('[data-pn]').forEach(c => c.onclick = () => { PH.nhom = c.dataset.pn; PH.n = 80; vPheu(); });
+  draw();
+}
+function pheuDanhDau(s) { return esc(s).replace(/\u27e6(.*?)\u27e7/g, '<mark style="background:#ffe1e1;color:#a30000">$1</mark>'); }
+async function openPheu(sku) {
+  const x = D.PHEU.find(r => r['SKU'] === sku); if (!x) return;
+  const b = pheuBuoc(x);
+  openPanel('Phễu · ' + sku, '<div class="loading">Đang đọc…</div>');
+  let c;
+  try { c = await call('pheuChiTiet', TOKEN, sku); } catch (e) { $('pB').innerHTML = '<div class="err">' + esc(e.message) + '</div>'; return; }
+  c = c || { web: [], hepa: [], ung_vien: [] };
+  const bn = c.ban_nhap, ma = pheuMa(x), khoa = ma + '@' + x['Phiên bản'], d = decision('PHEU', khoa);
+  const stepper = PHEU_BUOC.map((t, i) => `<span class="tag ${i + 1 < b ? 'ok' : i + 1 === b ? 'info' : ''}" style="${i + 1 === b ? 'font-weight:700' : 'opacity:.75'}">${i + 1}. ${t}</span>`).join(' ');
+  let html = `<div class="card"><div><span class="sku" style="font-size:20px">${esc(sku)}</span> <span class="muted">${esc(x['Nhóm'])} · ${esc(x['Loại lọc'])} · ${esc(x['Thương hiệu'])}</span></div>
+    <div class="row" style="margin-top:8px">${stepper}</div><div class="muted" style="margin-top:6px">${esc(PHEU_GIAI[b - 1])}</div>
+    ${x['Hồ sơ'] ? '<div class="muted">Hồ sơ: ' + esc(x['Hồ sơ']) + (x['Bản nháp'] ? ' · bản nháp: ' + esc(x['Bản nháp']) + '/BAN_DUYET.html' : '') + '</div>' : ''}</div>
+    <div class="card"><h2>Dữ kiện ứng viên (chưa phải dữ kiện đã xác minh)</h2><div class="scroll"><table><tr><th>Trường</th><th>Giá trị</th><th>Nguồn</th></tr>
+      ${(c.ung_vien || []).filter(u => u.gt).map(u => `<tr><td>${esc(u.truong)}</td><td>${esc(u.gt)}</td><td class="muted">${esc(u.nguon)}</td></tr>`).join('')}</table></div>
+      ${(c.cho_bat_buoc || []).length ? '<div style="margin-top:6px"><b>Hồ sơ còn chờ anh:</b> ' + c.cho_bat_buoc.map(esc).join(', ') + '</div>' : ''}</div>
+    <div class="card"><h2>Web Lọc Khí Xanh (${c.web.length} biến thể)</h2>${c.web.length ? `<div class="scroll"><table><tr><th>Trang</th><th>Biến thể</th><th class="num">Giá</th><th>SKU</th></tr>
+      ${c.web.map(w => `<tr><td><a href="#" data-lkx="${esc(w.ma)}"><span class="sku">${esc(w.ma)}</span></a> ${esc(w.ten)}</td><td>${esc(w.bt)}</td><td class="num">${w.gia ? fmt(w.gia) : ''}</td>
+        <td>${w.sku_web ? '<span class="tag ok">trên web</span>' : '<span class="tag info" style="white-space:normal">' + esc(w.cach) + '</span>'}</td></tr>`).join('')}</table></div>` : '<div class="muted">Chưa có trang web nào bán SKU này.</div>'}</div>
+    <div class="card"><h2>Shopee hepa_hn (${c.hepa.length} phân loại)</h2>${c.hepa.length ? `<div class="scroll"><table><tr><th>Listing</th><th>Phân loại</th><th class="num">Giá</th></tr>
+      ${c.hepa.map(h => `<tr><td><span class="sku">${esc(h.ma)}</span> ${esc(String(h.ten).slice(0, 80))} ${shopUrl('hepa_hn', h.id) ? `<a href="${shopUrl('hepa_hn', h.id)}" target="_blank" rel="noopener">↗</a>` : ''}</td><td>${esc(h.pl)}</td><td class="num">${h.gia ? fmt(h.gia) : ''}</td></tr>`).join('')}</table></div>` : '<div class="muted">Shop hepa_hn không bán SKU này.</div>'}</div>`;
+  if (bn) {
+    const kt = bn.kiem_tra;
+    html += `<div class="card"><h2>Bản nháp · phiên bản <span class="sku">${esc(bn.phien)}</span></h2>
+      <div class="muted">Dựng lúc ${esc(bn.luc)} · ${kt.chan.length ? '<b style="color:#a30000">CHƯA SẴN SÀNG ĐĂNG</b>' : '<b>Đạt kiểm tra</b>'} · chỗ tô đỏ là dữ kiện chờ xác minh, không được ra trang bán</div>
+      ${kt.chan.length ? '<h3>Mục chặn (' + kt.chan.length + ')</h3><ul>' + kt.chan.map(t => '<li>' + esc(t) + '</li>').join('') + '</ul>' : ''}
+      <h3>Web · ${esc(bn.web.ten_trang)}</h3><div class="muted">SEO: ${pheuDanhDau(bn.web.seo_title)} (${bn.web.seo_title.length}) · Meta: ${pheuDanhDau(bn.web.meta_description)} (${bn.web.meta_description.length})</div>
+      <iframe sandbox="" style="width:100%;height:420px;border:1px solid var(--line);border-radius:8px;margin-top:6px;background:#fff" srcdoc="${esc('<meta charset=utf-8><style>body{font:14px/1.5 Arial,sans-serif;margin:12px}table{border-collapse:collapse;width:100%}td,th{border:1px solid #ddd;padding:4px 6px;text-align:left}h2{font-size:16px}</style>' + bn.web.html.replace(/\u27e6(.*?)\u27e7/g, '<mark style="background:#ffe1e1;color:#a30000">$1</mark>'))}"></iframe>
+      ${(bn.shopee || []).map(s => `<h3>Shopee ${esc(s.shop)} · ${esc(s.ma_listing)}</h3><div><b>${pheuDanhDau(s.tieu_de)}</b> <span class="muted">(${s.tieu_de.length} ký tự)</span></div>
+        <div class="muted">${s.phan_loai.map(p => esc(p.ten) + ' → ' + esc(p.sku) + (p.gia ? ' · ' + fmt(p.gia) : ' · chưa có giá')).join(' | ')}</div>
+        <pre style="white-space:pre-wrap;max-height:300px;overflow:auto;background:var(--chip);padding:8px;border-radius:8px">${pheuDanhDau(s.mo_ta)}</pre>`).join('')}
+      <h3>Bộ ảnh (${bn.anh.o.length} ô)</h3><div class="scroll"><table><tr><th>File</th><th>Vai trò</th><th>Chữ trên ảnh</th><th>Ảnh thật cần</th></tr>
+        ${bn.anh.o.map(o => `<tr><td class="sku">${esc(o.file)}</td><td>${esc(o.vai_tro)}</td><td>${pheuDanhDau(o.dong_lon)}<div class="muted">${pheuDanhDau(o.dong_phu)}</div></td><td class="muted">${esc(o.anh_that)}</td></tr>`).join('')}</table></div></div>
+    <div class="card"><h2>Anh duyệt</h2>${d ? `<div>Đã ghi: <b>${esc(d.qd)}</b> ${d.ghiChu ? '· ' + esc(d.ghiChu) : ''} <span class="muted">(${esc(d.luc)})</span></div>` : ''}
+      ${kt.chan.length ? '<div class="muted">Chưa duyệt được: còn ' + kt.chan.length + ' mục chặn. Anh có thể ghi yêu cầu sửa.</div>' : '<div class="muted">Duyệt áp cho đúng phiên bản ' + esc(bn.phien) + '. Sửa bất kỳ chữ nào → phiên bản mới → duyệt lại.</div>'}
+      <input type="text" id="phGc" placeholder="Ghi chú / yêu cầu sửa" style="width:100%;margin:8px 0">
+      <div class="row">${kt.chan.length ? '' : '<button class="btn" id="phDuyet">Duyệt phiên bản ' + esc(bn.phien) + '</button>'}<button class="btn ghost" id="phSua">Yêu cầu sửa</button></div></div>`;
+  }
+  $('pB').innerHTML = html;
+  bindItems($('pB'));
+  const luu = async qd => {
+    const r = await call('luuQuyetDinh', TOKEN, { loai: 'PHEU', khoa, qd, ghiChu: $('phGc').value.trim(), moTa: 'Phễu ' + sku });
+    D.qd['PHEU|' + khoa] = { qd: r.qd, ghiChu: r.ghiChu, luc: r.luc };
+    toast(qd === 'Duyệt' ? 'Đã duyệt phiên bản ' + bn.phien + '.' : 'Đã ghi yêu cầu sửa.'); openPheu(sku);
+  };
+  if ($('phDuyet')) $('phDuyet').onclick = () => luu('Duyệt').catch(e => toast(e.message));
+  if ($('phSua')) $('phSua').onclick = () => { if (!$('phGc').value.trim()) { toast('Ghi rõ cần sửa gì.'); return; } luu('Sửa lại').catch(e => toast(e.message)); };
 }
 
 /* ============ Câu hỏi / việc ============ */
