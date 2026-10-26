@@ -1278,7 +1278,7 @@ async function openPheu(ho) {
    Danh sách: ảnh + TIÊU ĐỀ | SKU | GIÁ (mỗi biến thể một dòng) | cập nhật | thao tác. Trạng thái: Hộp nháp → Chờ đăng → Đang đăng →
    Đã đăng / Đăng lỗi. Sửa từng bài ở trang Chỉnh sửa; sửa sau khi duyệt → về Hộp nháp (duyệt lại đúng phiên bản). */
 let HN = { tt: 'nhap', nhom: '', viec: '', loi: false, gia: false, q: '', trang: 1, chon: new Set(), data: null, sua: null, skuDs: null };
-const HN_TT = [['nhap', 'Hộp nháp'], ['cho_dang', 'Chờ đăng'], ['dang_dang', 'Đang đăng'], ['da_dang', 'Đã đăng'], ['loi', 'Đăng lỗi'], ['bo', 'Đã bỏ']];
+const HN_TT = [['nhap', 'Hộp nháp'], ['cho_dang', 'Chờ đăng'], ['dang_dang', 'Đang đăng'], ['da_luu', 'Đã lưu (ẩn / chờ đối chiếu)'], ['da_dang', 'Đã đăng'], ['loi', 'Đăng lỗi'], ['bo', 'Đã bỏ']];
 const HN_MOI_TRANG = 50;
 function hnAnh(u, co) { return String(u || '').replace(/^\/\//, 'https://').replace(/(_(small|medium|large|grande|compact|thumb|master))?(\.[a-z]+)(\?.*)?$/i, '_' + co + '$3'); }
 function hnGia(v) { return v ? fmt(v) + ' ₫' : ''; }
@@ -1303,15 +1303,17 @@ async function vHopNhap() {
   HN.chon = new Set([...HN.chon].filter(m => rows.some(b => b.ma === m)));
   const nut = {
     nhap: ['<button class="btn" data-hb="duyet">Duyệt</button>', '<button class="btn ghost" data-hb="sua">Chỉnh sửa hàng loạt ▾</button>', '<button class="btn ghost" data-hb="bo">Bỏ</button>'],
-    cho_dang: ['<button class="btn" data-hb="goi">Tải lên: gói giao GPT</button>', '<button class="btn ghost" data-hb="trolai">Đưa về Hộp nháp</button>'],
-    dang_dang: ['<button class="btn" data-hb="dadang">Đánh dấu đã đăng</button>', '<button class="btn ghost" data-hb="trolai">Đưa về Hộp nháp</button>'],
+    cho_dang: ['<button class="btn" data-hb="goi">Tải lên: tạo gói giao Codex</button>', '<button class="btn ghost" data-hb="trolai">Đưa về Hộp nháp</button>'],
+    dang_dang: ['<button class="btn" data-hb="ketqua">Nhận kết quả Codex</button>', '<button class="btn ghost" data-hb="thuhoi">Thu hồi gói</button>', '<button class="btn ghost" data-hb="trolai">Đưa về Hộp nháp</button>'],
+    da_luu: ['<button class="btn ghost" data-hb="ketqua">Nhận kết quả Codex</button>', '<button class="btn ghost" data-hb="trolai">Đưa về Hộp nháp</button>'],
     da_dang: ['<button class="btn ghost" data-hb="trolai">Đưa về Hộp nháp (sửa lại)</button>'],
-    loi: ['<button class="btn ghost" data-hb="trolai">Đưa về Hộp nháp</button>', '<button class="btn ghost" data-hb="dadang">Đánh dấu đã đăng</button>'],
+    loi: ['<button class="btn ghost" data-hb="ketqua">Nhận kết quả Codex</button>', '<button class="btn ghost" data-hb="trolai">Đưa về Hộp nháp</button>'],
     bo: ['<button class="btn ghost" data-hb="khoiphuc">Khôi phục</button>'] }[HN.tt];
   $('main').innerHTML = `
     <div class="card">
       <div class="hn-tabs">${HN_TT.map(([k, t]) => `<a href="#" data-ht="${k}" class="${HN.tt === k ? 'on' : ''}">${t} <span class="${k === 'loi' && demTT[k] ? 'bad' : ''}">(${demTT[k] || 0})</span></a>`).join('')}</div>
-      <div class="muted" style="margin-bottom:8px">Bài web lockhixanh.vn theo luật 1 trang = 1 máy. Xem tiêu đề, SKU, giá → <b>Chỉnh sửa</b> hoặc <b>Duyệt</b>. Bài Chờ đăng → <b>Tải lên</b> = lấy gói giao GPT; lần cập nhật sau app tự đối chiếu web (Đã đăng / Đăng lỗi).</div>
+      <div class="muted" style="margin-bottom:8px">Bài web lockhixanh.vn (1 trang = 1 máy). Xem tiêu đề, SKU, giá → <b>Chỉnh sửa</b> → duyệt ảnh, xác nhận dữ kiện → <b>Duyệt</b>.
+        Chờ đăng → <b>Tải lên</b> = gói giao Codex (bản chụp cố định, có mã gói). Codex làm xong → <b>Nhận kết quả</b> → app đối chiếu web công khai (Đã đăng / Đăng lỗi; trang ẩn ở "Đã lưu").</div>
       <div class="row" style="gap:6px"><select id="hnNhom" style="max-width:220px"><option value="">Mọi hãng</option>${nhoms.map(([m, t]) => `<option value="${esc(m)}" ${HN.nhom === m ? 'selected' : ''}>${esc(t.replace('lockhixanh.vn · ', ''))} (${all.filter(b => b.nhom === m && b.trangThai === HN.tt).length})</option>`).join('')}</select>
         <select id="hnViec" style="max-width:180px">${[['', 'Mọi việc'], ['Sửa', 'Sửa trang cũ'], ['Tạo', 'Tạo mới (tách)'], ['Bật', 'Bật hiện']].map(([k, t]) => `<option value="${k}" ${HN.viec === k ? 'selected' : ''}>${t}</option>`).join('')}</select>
         <label class="muted"><input type="checkbox" id="hnLoi" ${HN.loi ? 'checked' : ''}> Chỉ bài còn lỗi</label>
@@ -1349,20 +1351,23 @@ function hnDong(b) {
       <div style="min-width:0"><div class="ten" data-hs="${esc(b.ma)}">${esc(d.tieu_de)}</div>
       <div class="muted" style="font-size:12px">${esc(d.viec)} · ${esc(b.tenNhom.replace('lockhixanh.vn · ', ''))}${d.ma_listing ? ' · ' + esc(d.ma_listing) : ''}${d.ban_90 ? ' · bán 90 ngày ' + fmt(num(d.ban_90)) : ''}</div>
       ${b.loi.length ? `<div><span class="tag" style="background:var(--bad-bg);color:var(--bad);white-space:normal" title="${esc(b.loi.join('\n'))}">${b.loi.length} lỗi: ${esc(b.loi[0])}${b.loi.length > 1 ? '…' : ''}</span></div>` : ''}
+      ${Object.keys(b.choXacNhan || {}).length ? `<span class="tag warn" title="${esc(Object.values(b.choXacNhan).join('\n'))}">${Object.keys(b.choXacNhan).length} chờ anh chốt</span>` : ''}
+      ${(b.phuThuoc || []).length ? `<span class="tag info" title="${esc(b.phuThuoc.map(x => x.ten + ' chờ ' + x.cho.join(', ')).join('\n'))}">${b.phuThuoc.length} bước xoá chờ trang khác</span>` : ''}
+      ${b.goi ? `<span class="tag info">${esc(b.goi)}</span>` : ''}
       ${b.luu.some(x => x.startsWith('Giá bất thường')) ? '<span class="tag warn">giá bất thường</span>' : ''}
       ${b.ketQua && ['dang_dang', 'da_dang', 'loi'].includes(b.trangThai) ? `<div class="muted" style="font-size:12px">${esc(b.ketQua)}</div>` : ''}</div></div></td>
     <td>${bt.map(v => `<div class="hn-bt"><span class="sku">${esc(v.sku || '—')}</span><small>${esc(v.ten)}</small></div>`).join('') || '<span class="muted">—</span>'}</td>
     <td class="num">${bt.map(v => `<div class="hn-bt">${v.gia ? '<b>' + hnGia(v.gia) + '</b>' : '<b style="color:var(--bad)">chưa có</b>'}<small>${v.gia_shopee_lkx ? 'Shopee LKX ' + fmt(v.gia_shopee_lkx) : '&nbsp;'}</small></div>`).join('')}</td>
     <td class="hide-m muted" style="font-size:12px;white-space:nowrap">${esc(String(b.capNhat).slice(0, 16))}<br>${esc(b.nguoi || '')}</td>
     <td class="hn-thao"><a data-hs="${esc(b.ma)}">Chỉnh sửa</a>
-      ${b.trangThai === 'nhap' ? `<a data-ha="duyet" data-ma="${esc(b.ma)}" ${b.loi.length ? 'style="color:var(--muted)" title="Còn lỗi — sửa trước"' : ''}>Duyệt</a><a data-ha="bo" data-ma="${esc(b.ma)}">Bỏ</a>` : ''}
-      ${b.trangThai === 'cho_dang' ? `<a data-ha="goi" data-ma="${esc(b.ma)}">Tải lên (GPT)</a>` : ''}
+      ${b.trangThai === 'nhap' ? `<a data-ha="duyet" data-ma="${esc(b.ma)}" ${b.loi.length || Object.keys(b.choXacNhan || {}).length ? 'style="color:var(--muted)" title="Còn lỗi / điểm chờ chốt"' : ''}>Duyệt</a><a data-ha="bo" data-ma="${esc(b.ma)}">Bỏ</a>` : ''}
+      ${b.trangThai === 'cho_dang' ? `<a data-ha="goi" data-ma="${esc(b.ma)}">Tải lên (gói)</a>` : ''}
       ${d.handle && !String(d.viec).startsWith('Tạo') ? `<a href="https://lockhixanh.vn/products/${esc(d.handle)}" target="_blank" rel="noopener">Xem web ↗</a>` : ''}
       <a data-hl="${esc(b.ma)}">Lịch sử</a></td></tr>`;
 }
 async function hnHanhDong(viec, ds) {
   if (!ds.length) { toast('Chưa chọn bài nào.'); return; }
-  const fn = { duyet: 'hopNhapDuyet', bo: 'hopNhapBo', trolai: 'hopNhapTroLai', khoiphuc: 'hopNhapKhoiPhuc', dadang: 'hopNhapDaDang' }[viec];
+  const fn = { duyet: 'hopNhapDuyet', bo: 'hopNhapBo', trolai: 'hopNhapTroLai', khoiphuc: 'hopNhapKhoiPhuc', thuhoi: 'hopNhapThuHoi' }[viec];
   try {
     if (viec === 'goi') return hnGoi(ds);
     const r = await call(fn, TOKEN, ds);
@@ -1377,7 +1382,7 @@ async function hnGoi(ds) {
     const g = await call('hopNhapGoi', TOKEN, ds);
     if (!g.so) { toast('Không có bài Chờ đăng đúng phiên bản đã duyệt.'); return; }
     await hnTai(); HN.chon.clear(); HN.tt = 'dang_dang'; await vHopNhap();
-    $('hnKq').innerHTML = `<div class="card"><b>Gói giao GPT: ${g.so} bài</b> (đã chuyển sang Đang đăng). Dán nguyên khối cho GPT / Codex.
+    $('hnKq').innerHTML = `<div class="card"><b>Gói ${esc(g.ma_goi)}: ${g.so} bài</b> (đã chuyển sang Đang đăng). File: <code>${esc(g.file)}</code> · SHA ${esc((g.sha || '').slice(0, 16))}. Dán nguyên khối dưới cho Codex.
       <textarea id="hnGoiText" style="width:100%;height:240px;font:12px/1.4 Menlo,monospace;margin-top:6px">${esc(g.text)}</textarea><button class="btn" id="hnCopy">Sao chép</button></div>`;
     $('hnCopy').onclick = async () => { try { await navigator.clipboard.writeText($('hnGoiText').value); } catch (e) { $('hnGoiText').select(); document.execCommand('copy'); } toast('Đã sao chép gói giao GPT.'); };
   } catch (e) { toast(e.message); }
@@ -1389,9 +1394,22 @@ async function hnLichSu(ma) {
     $('pB').innerHTML = `<div class="card"><table><tr><th>Lúc</th><th>Người</th><th>Việc</th><th>Chi tiết</th></tr>${ls.map(x => `<tr><td class="muted">${esc(x.luc)}</td><td>${esc(x.nguoi)}</td><td>${esc(x.viec)}</td><td class="muted">${esc(x.chiTiet)}</td></tr>`).join('')}</table></div>`;
   } catch (e) { $('pB').innerHTML = '<div class="err">' + esc(e.message) + '</div>'; }
 }
+function hnKetQua() {
+  openPanel('Nhận kết quả Codex', `<div class="card hn-form"><div class="muted">Dán bảng kết quả Codex trả về, mỗi bài một dòng:<br><code>MÃ_GÓI | ma | phien | id_haravan | việc đã làm | lỗi</code><br>
+    Lỗi trống = đã lưu trong admin → bài sang "Đã lưu", lần cập nhật sau app đối chiếu web công khai. Có lỗi → "Đăng lỗi". Dòng không khớp gói / phiên đang giao sẽ bị bỏ qua (ghi lý do).</div>
+    <textarea id="kqText" style="min-height:200px" placeholder="GOI-20261026-... | LKX:... | abc123 | 1056... | sửa | "></textarea><div style="margin-top:8px"><button class="btn" id="kqNhan">Nhận kết quả</button></div><div id="kqOut"></div></div>`);
+  $('kqNhan').onclick = async () => {
+    try { const r = await call('hopNhapNhanKetQua', TOKEN, $('kqText').value);
+      $('kqOut').innerHTML = `<div style="margin-top:8px"><b>Đã nhận ${r.nhan.length} bài</b>${r.nhan.map(x => '<div class="muted">' + esc(x.ma) + ' → ' + esc((HN.data.trangThai || {})[x.trangThai] || x.trangThai) + '</div>').join('')}
+        ${r.bo.length ? '<b style="color:var(--bad)">Bỏ qua ' + r.bo.length + ' dòng</b>' + r.bo.map(x => '<div class="muted">' + esc(x.dong) + ' — ' + esc(x.ly_do) + '</div>').join('') : ''}</div>`;
+      await hnTai();
+    } catch (e) { toast(e.message); }
+  };
+}
 function hnNutBar(k) {
   const ds = [...HN.chon];
   if (k === 'mau') return hnMau();
+  if (k === 'ketqua') return hnKetQua();
   if (k !== 'sua') return hnHanhDong(k, ds);
   const m = $('hnMenu');
   if (m.innerHTML) { m.innerHTML = ''; return; }
@@ -1430,66 +1448,167 @@ function hnMau() {
     catch (e) { toast(e.message); }
   };
 }
-/* ---- Trang chỉnh sửa một bài (như trang Chỉnh sửa sản phẩm của BigSeller) ---- */
+/* ---- Trang chỉnh sửa một bài (như trang Chỉnh sửa sản phẩm của BigSeller) + so "Trang hiện tại ↔ Bản sẽ đăng" ---- */
+const HN_VIEC = ['Sửa trang cũ', 'Tạo mới (tách từ trang gộp)', 'Bật hiện (đã nhập ẩn 22/10)'];
+function hnKhac(a, b) { return String(a == null ? '' : a).trim() !== String(b == null ? '' : b).trim(); }
+function hnO(cu, moi, laHtml) { const k = hnKhac(cu, moi); return `<td class="muted" style="width:45%">${laHtml ? cu : esc(cu == null ? '—' : cu)}</td><td style="width:45%;${k ? 'background:#fff6d6' : ''}">${laHtml ? moi : esc(moi == null ? '—' : moi)}${k ? ' <span class="tag warn">đổi</span>' : ''}</td>`; }
 async function hnSua(ma) {
-  const b = HN.data && HN.data.bai.find(x => x.ma === ma);
+  if (!HN.data) { $('main').innerHTML = '<div class="loading">Đang đọc bài…</div>'; try { await hnTai(); } catch (e) { $('main').innerHTML = '<div class="card err">' + esc(e.message) + '</div>'; return; } }
+  const b = HN.data.bai.find(x => x.ma === ma);
   if (!b) { HN.sua = null; return vHopNhap(); }
   if (!HN.skuDs) { try { const t = await call('bangSku', TOKEN); HN.skuDs = objs(t.mlkk).map(x => x['SKU chuẩn']).filter(Boolean); } catch (e) { HN.skuDs = []; } }
-  const d = JSON.parse(JSON.stringify(b.d)); HN.f = d;
-  const tt = Object.fromEntries(HN_TT);
+  const d = JSON.parse(JSON.stringify(b.d)), Dm = HN.data, tt = Object.fromEntries(HN_TT);
+  const ttBai = {}; Dm.bai.forEach(x => ttBai[x.ma] = x.trangThai);
+  const cho = Object.entries(b.choXacNhan || {}), choDuKien = cho.filter(([k]) => !k.startsWith('anh|')), choAnh = cho.filter(([k]) => k.startsWith('anh|'));
   $('main').innerHTML = `
     <div class="hn-top"><button class="btn ghost" id="hfVe">‹ Hộp nháp</button><b style="flex:1;min-width:200px">${esc(d.tieu_de)}</b>
-      <span class="tag info">${esc(tt[b.trangThai])}</span><span id="hfLoi"></span><button class="btn ghost" id="hfLuu">Lưu</button><button class="btn" id="hfDuyet">Lưu &amp; duyệt</button></div>
+      <span class="tag info">${esc(tt[b.trangThai])}</span><button class="btn ghost" id="hfLuu">Lưu</button><button class="btn" id="hfDuyet">Lưu &amp; duyệt</button></div>
+    <div class="card"><div class="row" style="gap:16px;flex-wrap:wrap">
+      <div><div class="muted">Máy</div><b>${esc(d.may)}</b></div><div><div class="muted">Việc</div><b>${esc(d.viec)}</b></div>
+      <div><div class="muted">ID Haravan / URL</div>${d.id_haravan ? `<a href="https://lockhixanh.myharavan.com/admin/products/${esc(d.id_haravan)}" target="_blank" rel="noopener">${esc(d.id_haravan)} ↗</a>` : '<span class="muted">chưa có (trang mới)</span>'} · <span class="muted">/products/${esc(d.handle)}</span></div>
+      <div><div class="muted">Phiên bản</div><span class="sku">${esc(b.phien)}</span>${b.phienDuyet && b.phienDuyet === b.phien && b.trangThai !== 'nhap' ? ' <span class="tag ok">đã duyệt</span>' : ''}${b.goi ? ' · gói <span class="sku">' + esc(b.goi) + '</span>' : ''}</div></div>
+      ${(d.bien_the_cu || []).some(c => c.quyet === 'xoa') ? `<div style="margin-top:8px"><b>Phụ thuộc:</b> ${(d.bien_the_cu || []).filter(c => c.quyet === 'xoa').map(c => `xoá biến thể "${esc(c.ten)}" chỉ sau khi ${(c.phu_thuoc || []).map(m => `<span class="sku">${esc(m)}</span> (${esc(tt[ttBai[m]] || '?')})`).join(', ') || '—'} Đã đăng`).join(' · ')}</div>` : ''}
+      <div style="margin-top:8px">${b.loi.length ? `<div><b style="color:var(--bad)">Lỗi phải sửa (${b.loi.length}):</b> ${b.loi.map(esc).join(' · ')}</div>` : '<span class="tag ok">Không lỗi</span>'}
+        ${cho.length ? `<div><b style="color:var(--warn)">Chờ anh chốt (${cho.length}):</b> ${choDuKien.length} dữ kiện cần xác nhận, ${choAnh.length} ảnh chưa duyệt</div>` : ''}
+        ${b.luu.length ? `<div class="muted">Cảnh báo trình bày: ${b.luu.map(esc).join(' · ')}</div>` : ''}
+        ${b.ketQua ? `<div class="muted">Kết quả / đối chiếu: ${esc(b.ketQua)}</div>` : ''}</div></div>
+    <div class="card"><h2>Trang hiện tại ↔ Bản sẽ đăng</h2><div id="hfSoSanh"><div class="loading">Đang đọc trang hiện tại…</div></div></div>
+    ${choDuKien.length || Object.keys(d.xac_nhan || {}).length ? `<div class="card"><h2>Xác nhận dữ kiện (tách khỏi duyệt bài)</h2>
+      <div class="muted">Duyệt bài KHÔNG tự xác nhận các điểm này. Mỗi điểm cần ghi bằng chứng / lý do; sửa nội dung liên quan → phải xác nhận lại.</div>
+      ${choDuKien.map(([k, v]) => `<div class="row" style="gap:6px;margin-top:8px;align-items:center"><span style="flex:2;min-width:220px">⚠ ${esc(v)}</span><input type="text" data-xnk="${esc(k)}" placeholder="Bằng chứng (tem, tài liệu hãng, anh xác nhận…)" style="flex:2;min-width:180px"><button class="btn ghost" data-xn="${esc(k)}">Xác nhận</button></div>`).join('')}
+      ${Object.values(d.xac_nhan || {}).map(x => `<div class="muted" style="margin-top:4px">✓ ${esc(x.noi_dung)} — ${esc(x.nguoi)} ${esc(x.luc)}: ${esc(x.ghi_chu)}</div>`).join('')}</div>` : ''}
     <div class="card hn-form"><h2>Thông tin cơ bản</h2>
-      <div class="row" style="gap:10px"><div style="flex:1;min-width:180px"><label>Việc</label><select data-f="viec">${['Sửa trang cũ', 'Tạo mới (tách từ trang gộp)', 'Bật hiện (đã nhập ẩn 22/10)'].map(v => `<option ${String(d.viec).startsWith(v.split(' (')[0]) ? 'selected' : ''}>${v}</option>`).join('')}${['Sửa trang cũ', 'Tạo mới (tách từ trang gộp)', 'Bật hiện (đã nhập ẩn 22/10)'].includes(d.viec) ? '' : `<option selected>${esc(d.viec)}</option>`}</select></div>
+      <div class="row" style="gap:10px"><div style="flex:1;min-width:180px"><label>Việc</label><select data-f="viec">${HN_VIEC.map(v => `<option ${String(d.viec).startsWith(v.split(' (')[0]) ? 'selected' : ''}>${v}</option>`).join('')}${HN_VIEC.includes(d.viec) ? '' : `<option selected>${esc(d.viec)}</option>`}</select></div>
         <div style="flex:1;min-width:180px"><label>Máy</label><input type="text" data-f="may" value="${esc(d.may)}"></div>
-        <div style="flex:1;min-width:140px"><label>ID Haravan ${d.id_haravan ? `<a href="https://lockhixanh.myharavan.com/admin/products/${esc(d.id_haravan)}" target="_blank" rel="noopener">admin ↗</a>` : ''}</label><input type="text" data-f="id_haravan" value="${esc(d.id_haravan || '')}"></div></div>
+        <div style="flex:1;min-width:140px"><label>ID Haravan</label><input type="text" data-f="id_haravan" value="${esc(d.id_haravan || '')}"></div></div>
       <label>Tiêu đề <span data-dem="tieu_de"></span></label><input type="text" data-f="tieu_de" value="${esc(d.tieu_de)}">
       <label>URL: lockhixanh.vn/products/</label><input type="text" data-f="handle" value="${esc(d.handle)}">
       <label>SEO title <span data-dem="seo_title"></span></label><input type="text" data-f="seo_title" value="${esc(d.seo_title)}">
-      <label>Meta description <span data-dem="meta_description"></span></label><input type="text" data-f="meta_description" value="${esc(d.meta_description)}">
-    </div>
-    <div class="card hn-form"><h2>Biến thể · SKU · giá</h2><datalist id="hfSku">${(HN.skuDs || []).map(s => `<option value="${esc(s)}">`).join('')}</datalist>
-      <div class="scroll"><table><tr><th>Tên biến thể</th><th>SKU</th><th class="num">Giá web (₫)</th><th class="num hide-m">Shopee LKX</th><th class="hide-m">Nguồn giá</th><th></th></tr><tbody id="hfBt"></tbody></table></div>
-      <button class="btn ghost" id="hfThemBt" style="margin-top:8px">+ Thêm biến thể</button></div>
-    <div class="card hn-form"><h2>Ảnh <span class="muted" style="font-weight:400">(ảnh 1 = ảnh bìa; vuông 1080×1080; alt ≤125)</span></h2><div class="hn-anh" id="hfAnh"></div>
-      <div class="row" style="gap:6px;margin-top:8px"><input type="text" id="hfUrl" placeholder="Dán URL ảnh (https://…)" style="flex:1"><button class="btn ghost" id="hfThemUrl">Thêm URL</button><button class="btn ghost" id="hfAnhNguon">Thêm từ nguồn ▾</button></div><div id="hfAnhNg"></div></div>
-    <div class="card hn-form"><h2>Mô tả</h2><div class="muted">Để trống = khi đăng giữ mô tả hiện tại (sửa trang cũ) hoặc mô tả tạm 1 câu (trang mới). Không dùng H1.</div>
-      <textarea data-f="mo_ta_html">${esc(d.mo_ta_html || '')}</textarea><details style="margin-top:6px"><summary class="muted">Xem trước</summary><iframe id="hfXem" sandbox="" style="width:100%;height:320px;border:1px solid var(--line);border-radius:8px;background:#fff"></iframe></details></div>
+      <label>Meta description <span data-dem="meta_description"></span></label><input type="text" data-f="meta_description" value="${esc(d.meta_description)}"></div>
+    <div class="card hn-form"><h2>Biến thể · SKU · giá</h2><datalist id="hfSku">${(HN.skuDs || []).map(x => `<option value="${esc(x)}">`).join('')}</datalist>
+      <div class="muted">"Sửa" phải chọn đúng variant_id của biến thể đang có (không chọn theo SKU / tên). "Tạo" = thêm biến thể mới. "Kiểm" = trang ẩn đã nhập, chỉ đối chiếu.</div>
+      <div class="scroll"><table><tr><th>Hành động</th><th>variant_id</th><th>Tên biến thể</th><th>SKU</th><th class="num">Giá web (₫)</th><th class="num hide-m">Shopee LKX</th><th class="hide-m">Nguồn giá</th><th></th></tr><tbody id="hfBt"></tbody></table></div>
+      <button class="btn ghost" id="hfThemBt" style="margin-top:8px">+ Thêm biến thể</button>
+      ${(d.bien_the_cu || []).length ? `<h3 style="margin-top:14px">Biến thể đang có trên trang (phải quyết từng dòng)</h3><div class="scroll"><table><tr><th>variant_id</th><th>Tên trên web</th><th>SKU web</th><th class="num">Giá web</th><th>Quyết định</th><th>Phụ thuộc</th></tr>
+        ${d.bien_the_cu.map((c, i) => `<tr><td class="sku">${esc(c.variant_id)}</td><td>${esc(c.ten)}</td><td class="sku">${esc(c.sku_web || '—')}</td><td class="num">${fmt(c.gia)}</td>
+          <td><select data-cu="${i}">${[['', '— chưa quyết —'], ['sua', 'Sửa (đã ghép với biến thể bài)'], ['giu', 'Giữ nguyên'], ['xoa', 'Xoá (khi phụ thuộc đủ)']].map(([k, t]) => `<option value="${k}" ${c.quyet === k ? 'selected' : ''}>${t}</option>`).join('')}</select></td>
+          <td class="muted">${(c.phu_thuoc || []).map(m => esc(m) + ' (' + esc(tt[ttBai[m]] || '?') + ')').join(', ') || '—'}</td></tr>`).join('')}</table></div>` : ''}</div>
+    <div class="card hn-form"><h2>Bộ ảnh</h2><div id="hfDrive" class="muted"></div><div id="hfVaiTro" style="margin-top:8px"></div>
+      <h3 style="margin-top:12px">Thư viện ảnh sản phẩm (sẽ đăng · ảnh 1 = bìa) <button class="btn ghost" id="hfDuyetBo" style="padding:4px 10px;font-size:12px">Duyệt cả bộ ảnh</button></h3>
+      <div class="muted">Duyệt ảnh = anh đã xem đúng nội dung, đúng máy / SKU áp dụng. Ảnh mượn trang gộp / trang khác phải ghi lý do. Lưu các thay đổi ảnh (thứ tự, alt, vai trò) TRƯỚC khi duyệt; đổi lại sau khi duyệt → ảnh đó phải duyệt lại.</div><div class="hn-anh" id="hfAnh"></div>
+      <div class="row" style="gap:6px;margin-top:8px"><input type="text" id="hfUrl" placeholder="URL ảnh công khai (https://…)" style="flex:2"><button class="btn ghost" id="hfThemUrl">Thêm URL</button>
+        <input type="text" id="hfFile" placeholder="Đường dẫn file ảnh thật (Drive / local)" style="flex:2"><button class="btn ghost" id="hfThemFile">Thêm file</button><button class="btn ghost" id="hfAnhNguon">Thêm từ nguồn ▾</button></div><div id="hfAnhNg"></div>
+      <div class="muted" style="margin-top:8px">Ảnh chèn trong mô tả HTML: ${((d.mo_ta_html || '').match(/<img/gi) || []).length} ảnh${d.mo_ta_che_do === 'giu' ? ' (đang giữ mô tả trang hiện tại — xem ở so sánh)' : ''}. Không tự nhúng bộ ảnh vào mô tả.</div></div>
+    <div class="card hn-form"><h2>Mô tả</h2><label>Cách xử lý mô tả</label><select data-f="mo_ta_che_do">${Object.entries(Dm.moTaCheDo).map(([k, t]) => `<option value="${k}" ${d.mo_ta_che_do === k ? 'selected' : ''}>${t}</option>`).join('')}</select>
+      <label>HTML (dùng khi chọn "Thay bằng HTML"; không H1)</label><textarea data-f="mo_ta_html">${esc(d.mo_ta_html || '')}</textarea>
+      <details style="margin-top:6px"><summary class="muted">Xem trước</summary><iframe id="hfXem" sandbox="" style="width:100%;height:320px;border:1px solid var(--line);border-radius:8px;background:#fff"></iframe></details></div>
     <div class="card"><h2>Nguồn</h2><div id="hfNguon"><div class="loading">Đang đọc nguồn…</div></div>
       <div class="hn-form"><label>Thêm nguồn (như "Link nguồn" của BigSeller)</label><div class="row" style="gap:6px"><input type="text" id="hfNgNhan" placeholder="Tên (vd: tem máy, tài liệu hãng)" style="flex:1"><input type="text" id="hfNgUrl" placeholder="https://…" style="flex:2"><button class="btn ghost" id="hfNgThem">+ Thêm nguồn</button></div><div id="hfNgThemDs"></div></div></div>
     <div class="card hn-form"><h2>Ghi chú</h2><input type="text" data-f="ghi_chu" value="${esc(d.ghi_chu || '')}" placeholder="Ghi chú nội bộ (không đăng)">
-      <div class="muted" style="margin-top:8px">Trang nguồn: ${(d.nguon || []).map(n => esc((n.ma ? n.ma + ' ' : '') + n.ten.slice(0, 60))).join(' · ') || '—'} · Độ chắc SKU: ${esc(d.do_chac_sku || '—')} · ${esc(d.dot || '')}</div></div>`;
+      <div class="muted" style="margin-top:8px">Trang nguồn: ${(d.nguon || []).map(n => esc((n.ma ? n.ma + ' ' : '') + n.ten.slice(0, 60)) + (n.so_may > 1 ? ' (gộp ' + n.so_may + ' máy)' : '')).join(' · ') || '—'} · Độ chắc SKU: ${esc(d.do_chac_sku || '—')}</div></div>`;
   const ve = () => { HN.sua = null; vHopNhap(); window.scrollTo(0, 0); };
   $('hfVe').onclick = ve;
   const demLai = () => { [['tieu_de', 10, 70], ['seo_title', 10, 60], ['meta_description', 120, 155]].forEach(([k, lo, hi]) => document.querySelector(`[data-dem="${k}"]`).innerHTML = hnDem(d[k], lo, hi));
     const xem = $('hfXem'); if (xem) xem.srcdoc = '<meta charset=utf-8><style>body{font:14px/1.5 Arial;margin:12px}table{border-collapse:collapse}td,th{border:1px solid #ddd;padding:4px 8px}</style>' + (d.mo_ta_html || '<i>(trống)</i>'); };
-  document.querySelectorAll('[data-f]').forEach(i => i.oninput = () => { d[i.dataset.f] = i.value; demLai(); });
+  document.querySelectorAll('[data-f]').forEach(i => i.oninput = i.onchange = () => { d[i.dataset.f] = i.value; demLai(); });
   demLai();
+  document.querySelectorAll('[data-xn]').forEach(btn => btn.onclick = async () => {
+    const k = btn.dataset.xn, gc = document.querySelector(`[data-xnk="${CSS.escape(k)}"]`).value.trim();
+    try { await call('hopNhapXacNhan', TOKEN, ma, k, gc); await hnTai(); toast('Đã xác nhận (có ghi lịch sử).'); hnSua(ma); } catch (e) { toast(e.message); }
+  });
+  // biến thể
   const veBt = () => {
-    $('hfBt').innerHTML = (d.bien_the || []).map((v, i) => `<tr><td><input type="text" data-bt="${i}" data-k="ten" value="${esc(v.ten)}"></td>
+    const cur = (HN.ht && HN.ht.co) ? HN.ht.bien_the : [];
+    $('hfBt').innerHTML = (d.bien_the || []).map((v, i) => `<tr><td><select data-bt="${i}" data-k="hanh_dong">${[['', '—'], ['sua', 'Sửa'], ['tao', 'Tạo'], ['kiem', 'Kiểm']].map(([k, t]) => `<option value="${k}" ${v.hanh_dong === k ? 'selected' : ''}>${t}</option>`).join('')}</select></td>
+      <td>${v.hanh_dong === 'sua' ? `<select data-bt="${i}" data-k="variant_id" style="${v.variant_id ? '' : 'border-color:var(--bad)'}"><option value="">— chọn —</option>${cur.map(c => `<option value="${esc(c.variant_id)}" ${v.variant_id === c.variant_id ? 'selected' : ''}>${esc(c.variant_id)} · ${esc(c.ten)} · ${esc(c.sku)} · ${fmt(c.gia)}</option>`).join('')}${v.variant_id && !cur.some(c => c.variant_id === v.variant_id) ? `<option selected>${esc(v.variant_id)}</option>` : ''}</select>` : '<span class="muted">—</span>'}</td>
+      <td><input type="text" data-bt="${i}" data-k="ten" value="${esc(v.ten)}"></td>
       <td><input type="text" list="hfSku" data-bt="${i}" data-k="sku" value="${esc(v.sku)}" style="font-family:Menlo,monospace">${(v.ung_vien || []).length ? '<div class="muted" style="font-size:11px">khác: ' + v.ung_vien.map(esc).join(', ') + '</div>' : ''}</td>
       <td><input type="text" data-bt="${i}" data-k="gia" value="${v.gia ? fmt(v.gia) : ''}" style="text-align:right;${v.gia ? '' : 'border-color:var(--bad)'}"></td>
-      <td class="num hide-m muted">${v.gia_shopee_lkx ? fmt(v.gia_shopee_lkx) : ''}</td><td class="hide-m muted" style="font-size:12px">${esc(v.gia_nguon || '')}</td>
-      <td><a href="#" data-xbt="${i}">Xoá</a></td></tr>`).join('');
-    $('hfBt').querySelectorAll('[data-bt]').forEach(i => i.oninput = () => { const v = d.bien_the[+i.dataset.bt]; v[i.dataset.k] = i.dataset.k === 'gia' ? (parseInt(i.value.replace(/\D/g, ''), 10) || null) : i.value.trim(); });
+      <td class="num hide-m muted">${v.gia_shopee_lkx ? fmt(v.gia_shopee_lkx) : ''}</td><td class="hide-m muted" style="font-size:12px">${esc(v.gia_nguon || '')}</td><td><a href="#" data-xbt="${i}">Xoá</a></td></tr>`).join('');
+    $('hfBt').querySelectorAll('[data-bt]').forEach(i => i.oninput = i.onchange = () => { const v = d.bien_the[+i.dataset.bt]; v[i.dataset.k] = i.dataset.k === 'gia' ? (parseInt(i.value.replace(/\D/g, ''), 10) || null) : i.value.trim(); if (i.dataset.k === 'hanh_dong') veBt(); });
     $('hfBt').querySelectorAll('[data-xbt]').forEach(a => a.onclick = e => { e.preventDefault(); d.bien_the.splice(+a.dataset.xbt, 1); veBt(); });
   };
-  veBt();
-  $('hfThemBt').onclick = () => { d.bien_the = d.bien_the || []; d.bien_the.push({ ten: '', sku: '', gia: null }); veBt(); };
-  const veAnh = () => {
-    $('hfAnh').innerHTML = (d.anh || []).map((a, i) => `<div class="o"><a href="${esc(hnAnh(a.url, 'large'))}" target="_blank" rel="noopener"><img src="${esc(hnAnh(a.url, 'medium'))}" alt="" referrerpolicy="no-referrer"></a>
-      <div class="nut"><a href="#" data-am="${i}" data-dx="-1">←</a><span class="muted">${i === 0 ? 'Bìa' : i + 1}</span><a href="#" data-am="${i}" data-dx="1">→</a><a href="#" data-ax="${i}">Xoá</a></div>
-      <input type="text" data-alt="${i}" value="${esc(a.alt || '')}" placeholder="alt"></div>`).join('') || '<div class="muted">Chưa có ảnh.</div>';
-    $('hfAnh').querySelectorAll('[data-am]').forEach(x => x.onclick = e => { e.preventDefault(); const i = +x.dataset.am, j = i + +x.dataset.dx; if (j < 0 || j >= d.anh.length) return; [d.anh[i], d.anh[j]] = [d.anh[j], d.anh[i]]; veAnh(); });
-    $('hfAnh').querySelectorAll('[data-ax]').forEach(x => x.onclick = e => { e.preventDefault(); d.anh.splice(+x.dataset.ax, 1); veAnh(); });
-    $('hfAnh').querySelectorAll('[data-alt]').forEach(x => x.oninput = () => d.anh[+x.dataset.alt].alt = x.value);
+  $('hfThemBt').onclick = () => { d.bien_the = d.bien_the || []; d.bien_the.push({ ten: '', sku: '', gia: null, hanh_dong: String(d.viec).startsWith('Sửa') ? '' : 'tao', variant_id: '' }); veBt(); };
+  document.querySelectorAll('[data-cu]').forEach(s2 => s2.onchange = () => { d.bien_the_cu[+s2.dataset.cu].quyet = s2.value; });
+  // ảnh
+  const anhThumb = (a, co) => a.url ? `<img src="${esc(hnAnh(a.url, co))}" alt="" referrerpolicy="no-referrer" data-zoom="${esc(hnAnh(a.url, 'master'))}">` : `<div data-file="${esc(a.file_local)}" style="aspect-ratio:1/1;display:flex;align-items:center;justify-content:center;background:#f4f6f8;border-radius:6px;font-size:12px;color:var(--muted);text-align:center;padding:6px">file local<br>đang tải…</div>`;
+  const veVaiTro = () => {
+    const nhap = d.anh_nhap || [];
+    $('hfVaiTro').innerHTML = `<div class="hn-anh">${['01', '02', '03', '04', '05'].map(vt => { const co = (d.anh || []).map((a, i) => [a, i]).filter(([a]) => a.vai_tro === vt); const ph = nhap.filter(a => a.vai_tro === vt);
+      return `<div class="o"><b>${vt} · ${esc(Dm.vaiTro[vt])}</b>${co.length ? co.map(([a, i]) => `<div style="margin-top:4px">${anhThumb(a, 'small')}<div class="muted" style="font-size:11px">ảnh ${i + 1} · ${esc(Dm.ttAnh[a.trang_thai] || a.trang_thai)}</div></div>`).join('') :
+        `<div style="margin-top:4px;padding:8px;border:1px dashed var(--bad);border-radius:6px;color:var(--bad);font-size:12px">THIẾU</div><div class="muted" style="font-size:11px">${esc(Dm.brief[vt])}</div>`}
+        ${ph.map(a => `<div style="margin-top:4px;opacity:.85">${anhThumb({ file_local: a.file_local }, 'small')}<div style="font-size:11px;color:var(--bad)">Bố cục nháp — không đăng</div></div>`).join('')}</div>`; }).join('')}</div>`;
+    hnTaiFile();
   };
-  veAnh();
-  const themAnh = u => { d.anh = d.anh || []; if (d.anh.some(a => a.url === u)) { toast('Ảnh đã có.'); return; } d.anh.push({ url: u, alt: (d.tieu_de + ' – ảnh ' + (d.anh.length + 1)).slice(0, 125) }); veAnh(); };
-  $('hfThemUrl').onclick = () => { const u = $('hfUrl').value.trim(); if (!/^https?:\/\//.test(u)) { toast('URL ảnh phải bắt đầu bằng https://'); return; } themAnh(u); $('hfUrl').value = ''; };
+  const veAnh = () => {
+    $('hfAnh').innerHTML = (d.anh || []).map((a, i) => `<div class="o" style="${a.trang_thai === 'da_duyet' ? 'border-color:#7cc59a' : ''}">${anhThumb(a, 'medium')}
+      <div class="nut"><a href="#" data-am="${i}" data-dx="-1">←</a><span class="muted">${i === 0 ? 'Bìa' : i + 1}</span><a href="#" data-am="${i}" data-dx="1">→</a><a href="#" data-ax="${i}">Xoá</a></div>
+      <select data-av="${i}" style="width:100%;font-size:12px;margin-top:4px">${Object.entries(Dm.vaiTro).map(([k, t]) => `<option value="${k}" ${a.vai_tro === k ? 'selected' : ''}>${k.length === 2 ? k + ' ' : ''}${t}</option>`).join('')}</select>
+      <input type="text" data-alt="${i}" value="${esc(a.alt || '')}" placeholder="alt">
+      <input type="text" data-ad="${i}" value="${esc(a.ap_dung || '')}" placeholder="Áp dụng: SKU / model / màu">
+      <input type="text" data-agc="${i}" value="${esc(a.ghi_chu || '')}" placeholder="Nhận xét nội dung ảnh (chữ trên ảnh, model…)" style="${a.ghi_chu ? 'border-color:var(--warn)' : ''}">
+      <select data-an="${i}" style="width:100%;font-size:12px;margin-top:4px">${Object.entries(Dm.nguonAnh).map(([k, t]) => `<option value="${k}" ${a.nguon_loai === k ? 'selected' : ''}>${t}</option>`).join('')}</select>
+      <div style="font-size:11px;margin-top:4px"><span class="tag ${a.trang_thai === 'da_duyet' ? 'ok' : 'warn'}">${esc(Dm.ttAnh[a.trang_thai] || a.trang_thai)}</span>${a.duyet_boi ? ' ' + esc(a.duyet_boi) + ' ' + esc(a.duyet_luc || '') : ''}${a.ghi_chu_duyet ? '<div class="muted">' + esc(a.ghi_chu_duyet) + '</div>' : ''}${a.loi_tai ? '<div style="color:var(--bad)">' + esc(a.loi_tai) + '</div>' : ''}
+        ${a.nguon_loai === 'ban_phac' ? '' : `<div><a href="#" data-dyanh="${i + 1}" data-v="${a.trang_thai === 'da_duyet' ? 0 : 1}">${a.trang_thai === 'da_duyet' ? 'Bỏ duyệt' : 'Duyệt ảnh này'}</a></div>`}</div>
+      <div class="muted" style="font-size:11px;word-break:break-all">${a.url ? 'URL: ' + esc(a.url.replace(/^https?:\/\//, '').slice(0, 60)) + '…' : 'File: ' + esc(a.file_local)}${a.media_id ? '<br>media_id ' + esc(a.media_id) : ''}${a.drive ? '<br>Drive: ' + esc(a.drive) : ''}<br>sha ${esc((a.sha256 || 'chưa tính').slice(0, 12))}</div></div>`).join('') || '<div class="muted">Chưa có ảnh.</div>';
+    const h = $('hfAnh');
+    h.querySelectorAll('[data-am]').forEach(x => x.onclick = e => { e.preventDefault(); const i = +x.dataset.am, j = i + +x.dataset.dx; if (j < 0 || j >= d.anh.length) return; [d.anh[i], d.anh[j]] = [d.anh[j], d.anh[i]]; veAnh(); veVaiTro(); });
+    h.querySelectorAll('[data-ax]').forEach(x => x.onclick = e => { e.preventDefault(); d.anh.splice(+x.dataset.ax, 1); veAnh(); veVaiTro(); });
+    h.querySelectorAll('[data-alt]').forEach(x => x.oninput = () => d.anh[+x.dataset.alt].alt = x.value);
+    h.querySelectorAll('[data-ad]').forEach(x => x.oninput = () => d.anh[+x.dataset.ad].ap_dung = x.value);
+    h.querySelectorAll('[data-agc]').forEach(x => x.oninput = () => d.anh[+x.dataset.agc].ghi_chu = x.value);
+    h.querySelectorAll('[data-av]').forEach(x => x.onchange = () => { d.anh[+x.dataset.av].vai_tro = x.value; veVaiTro(); });
+    h.querySelectorAll('[data-an]').forEach(x => x.onchange = () => d.anh[+x.dataset.an].nguon_loai = x.value);
+    h.querySelectorAll('[data-dyanh]').forEach(x => x.onclick = e => { e.preventDefault(); duyetAnh([+x.dataset.dyanh], x.dataset.v === '1'); });
+    hnTaiFile();
+  };
+  function hnTaiFile() { document.querySelectorAll('[data-file]').forEach(async el => {
+    try { const f = await call('hopNhapAnhFile', TOKEN, el.dataset.file);
+      el.outerHTML = f.co ? `<img src="${f.data}" alt="" data-zoom="${f.data}" title="${esc(f.duong_dan)}">` : `<div style="aspect-ratio:1/1;display:flex;align-items:center;justify-content:center;border:1px dashed var(--bad);border-radius:6px;color:var(--bad);font-size:12px;text-align:center;padding:6px">FILE KHÔNG TỒN TẠI<br>${esc(el.dataset.file.split('/').pop())}</div>`;
+    } catch (e) { el.textContent = e.message; }
+  }); }
+  if (!hnSua.zoom) { document.addEventListener('click', hnZoom); hnSua.zoom = 1; }
+  veBt(); veAnh(); veVaiTro();
+  const duyetAnh = async (viTri, duyet) => {
+    if (JSON.stringify(d.anh) !== JSON.stringify(b.d.anh)) { toast('Ảnh có thay đổi chưa lưu — bấm Lưu trước rồi mới duyệt ảnh.'); return; }
+    const muon = viTri.filter(i => ['muon_trang_gop', 'trang_khac'].includes((d.anh[i - 1] || {}).nguon_loai));
+    let gc = '';
+    if (duyet) {
+      gc = prompt(muon.length ? `Ảnh ${muon.join(', ')} là ảnh mượn / trang khác. Duyệt = xác nhận ảnh đúng máy ${d.may}. Ghi lý do:` : 'Ghi chú duyệt ảnh (không bắt buộc):', '');
+      if (gc === null) return;
+      if (muon.length && !gc.trim()) { toast('Ảnh mượn phải ghi lý do.'); return; }
+    }
+    try { await call('hopNhapDuyetAnh', TOKEN, ma, b.phien, viTri, duyet, gc || ''); await hnTai(); toast(duyet ? 'Đã duyệt ảnh ' + viTri.join(', ') : 'Đã bỏ duyệt.'); hnSua(ma); } catch (e2) { toast(e2.message); }
+  };
+  $('hfDuyetBo').onclick = () => duyetAnh((d.anh || []).map((a, i) => i + 1).filter(i => d.anh[i - 1].nguon_loai !== 'ban_phac' && d.anh[i - 1].trang_thai !== 'da_duyet'), true);
+  const themAnh = o => { d.anh = d.anh || []; if (d.anh.some(a => (o.url && a.url === o.url) || (o.file_local && a.file_local === o.file_local))) { toast('Ảnh đã có.'); return; }
+    d.anh.push(Object.assign({ alt: (d.tieu_de + ' – ảnh ' + (d.anh.length + 1)).slice(0, 125), vai_tro: d.anh.length ? 'chua_gan' : '01', ap_dung: 'tất cả biến thể', trang_thai: 'cho_duyet' }, o)); veAnh(); veVaiTro(); };
+  $('hfThemUrl').onclick = () => { const u = $('hfUrl').value.trim(); if (!/^https?:\/\//.test(u)) { toast('URL ảnh phải bắt đầu bằng https://'); return; } themAnh({ url: u, nguon_loai: 'trang_khac' }); $('hfUrl').value = ''; };
+  $('hfThemFile').onclick = () => { const f = $('hfFile').value.trim(); if (!f) return; themAnh({ file_local: f, url: '', nguon_loai: 'anh_that' }); $('hfFile').value = ''; };
+  // so sánh trang hiện tại
+  call('hopNhapHienTai', TOKEN, ma).then(ht => { HN.ht = ht; veBt();
+    const curId = {}; (ht.co ? ht.bien_the : []).forEach(v => curId[v.variant_id] = v);
+    const doiBt = [];
+    const moiBt = (d.bien_the || []).map(v => { const c = v.hanh_dong === 'sua' ? curId[v.variant_id] : null;
+      const giu = c && c.ten === v.ten && c.sku === v.sku && c.gia === v.gia; if (!giu) doiBt.push(v.ten);
+      return `${giu ? '= giữ' : v.hanh_dong === 'sua' ? '→ sửa' : v.hanh_dong === 'tao' ? '+ tạo' : '? ' + (v.hanh_dong || 'chưa rõ')}${v.variant_id ? ' #' + v.variant_id : ''}: ${v.ten} · ${v.sku} · ${v.gia ? fmt(v.gia) : 'chưa giá'}`; }).join('\n')
+      + (d.bien_the_cu || []).filter(c => c.quyet === 'xoa').map(c => { doiBt.push('xoá'); return '\n− xoá #' + c.variant_id + ' ' + c.ten + ' (sau khi ' + (c.phu_thuoc || []).join(', ') + ' Đã đăng)'; }).join('');
+    const cuBt = ht.co ? ht.bien_the.map(v => `#${v.variant_id}: ${v.ten} · ${v.sku || '—'} · ${fmt(v.gia)}`).join('\n') : null;
+    const anhMoi = (d.anh || []), anhCu = ht.co ? ht.anh : [];
+    const doiAnh = anhMoi.length !== anhCu.length || anhMoi.some((a, i) => (a.media_id || a.url) !== (anhCu[i] ? (a.media_id ? anhCu[i].media_id : anhCu[i].url) : '') || (a.alt || '') !== ((anhCu[i] || {}).alt || ''));
+    const moTaMoi = { giu: '(giữ nguyên mô tả hiện tại)', thay: d.mo_ta_html, tam: (d.tieu_de + '. Hàng thay thế tương thích LocKhiXanh®, không phải hàng chính hãng.'), xoa: '(xoá mô tả)' }[d.mo_ta_che_do];
+    const strip = list => list.map(a => `<img src="${esc(hnAnh(a.url, 'small'))}" alt="" referrerpolicy="no-referrer" title="${esc(a.alt || '(không alt)')}" data-zoom="${esc(hnAnh(a.url, 'master'))}" style="width:48px;height:48px;object-fit:cover;border-radius:6px;margin:2px;border:1px solid var(--line)">`).join('');
+    $('hfSoSanh').innerHTML = `<div class="muted" style="margin-bottom:6px">${ht.co ? 'Trang hiện tại lấy từ bản tải web công khai lúc ' + esc(ht.luc) + '.' : esc(ht.ly_do)} Ô vàng = sẽ thay đổi.</div>
+      <div class="scroll"><table><tr><th style="width:10%"></th><th>Trang hiện tại</th><th>Bản sẽ đăng</th></tr>
+      <tr><th>Tiêu đề</th>${hnO(ht.co ? ht.tieu_de : null, d.tieu_de)}</tr><tr><th>SEO title</th>${hnO(ht.co ? ht.seo_title : null, d.seo_title)}</tr>
+      <tr><th>Meta</th>${hnO(ht.co ? ht.meta_description : null, d.meta_description)}</tr>
+      <tr><th>Mô tả</th>${hnO(ht.co ? String(ht.mo_ta_html || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').slice(0, 300) + '…' : null, d.mo_ta_che_do === 'giu' ? (ht.co ? String(ht.mo_ta_html || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').slice(0, 300) + '…' : moTaMoi) : String(moTaMoi || '').replace(/<[^>]+>/g, ' ').slice(0, 300))}</tr>
+      <tr><th>Biến thể</th><td class="muted ws" style="white-space:pre-line">${esc(cuBt || '—')}</td><td style="white-space:pre-line;${doiBt.length ? 'background:#fff6d6' : ''}">${esc(moiBt)}${doiBt.length ? ' <span class="tag warn">đổi</span>' : ''}</td></tr>
+      <tr><th>Ảnh</th><td>${ht.co ? strip(ht.anh) + '<div class="muted">' + ht.anh.length + ' ảnh · alt: ' + (ht.anh.filter(a => a.alt).length) + '/' + ht.anh.length + '</div>' : '—'}</td><td style="${doiAnh ? 'background:#fff6d6' : ''}">${strip(anhMoi.filter(a => a.url))}${anhMoi.some(a => !a.url) ? '<span class="muted"> + file local</span>' : ''}<div class="muted">${anhMoi.length} ảnh · alt: ${anhMoi.filter(a => a.alt).length}/${anhMoi.length}${doiAnh ? ' · thứ tự / ảnh / alt thay đổi' : ''}</div>${doiAnh ? ' <span class="tag warn">đổi</span>' : ''}</td></tr></table></div>`;
+  }).catch(e => { $('hfSoSanh').innerHTML = '<div class="err">' + esc(e.message) + '</div>'; });
   let ng = null;
   call('hopNhapNguon', TOKEN, ma).then(n => { ng = n;
+    $('hfDrive').innerHTML = `Thư mục ảnh Drive (quy ước kho MASTER_LISTING): <code>${esc(n.drive.duong_dan)}</code> — <b style="color:${n.drive.co_that ? 'var(--ok)' : 'var(--bad)'}">${esc(n.drive.ghi_chu)}</b>. Tên file: <code>${esc(n.drive.ma_file)}_01.jpg</code>… · bản nháp trong <code>_nhap/</code>.`;
     $('hfNguon').innerHTML = `<h3>Trang web lockhixanh.vn (${n.web.length})</h3>${n.web.map(w => `<div class="muted">• <a href="https://lockhixanh.vn/products/${esc(w.handle)}" target="_blank" rel="noopener">${esc(w.ten)}</a> <a href="https://lockhixanh.myharavan.com/admin/products/${esc(w.id)}" target="_blank" rel="noopener">admin ↗</a> · ${esc(w.ly_do)} · ${w.so_anh} ảnh</div>`).join('') || '<div class="muted">—</div>'}
       <h3>Listing Shopee có SKU này (${n.shopee.length})</h3>${n.shopee.map(x => `<div class="muted">• <a href="${esc(x.link)}" target="_blank" rel="noopener">${esc(x.ma)} · ${esc(x.shop)}</a> ${esc(x.ten.slice(0, 70))}<div style="margin-left:14px;font-size:12px">${x.phan_loai.slice(0, 4).map(esc).join(' | ')}</div></div>`).join('') || '<div class="muted">—</div>'}
       ${n.pheu.length ? '<h3>Phễu Triển Khai</h3>' + n.pheu.map(x => `<div class="muted">• ${esc(x.ho)} (${esc(x.sku)}) · ${esc(x.buoc)}</div>`).join('') : ''}`;
@@ -1498,8 +1617,8 @@ async function hnSua(ma) {
     const box = $('hfAnhNg');
     if (box.innerHTML) { box.innerHTML = ''; return; }
     if (!ng) { toast('Đang đọc nguồn, thử lại sau giây lát.'); return; }
-    box.innerHTML = `<div class="muted" style="margin:8px 0">Bấm ảnh để thêm (ảnh từ trang nguồn / trang cùng SKU trên web — URL công khai, đăng được bằng "Thêm từ URL").</div><div class="hn-anh">${ng.anh.map((a, i) => `<div class="o" data-ta="${i}" style="cursor:pointer"><img src="${esc(hnAnh(a.url, 'medium'))}" alt="" referrerpolicy="no-referrer"><div class="muted" style="font-size:11px">${esc(a.tu)}</div></div>`).join('') || '<div class="muted">Không có ảnh nguồn.</div>'}</div>`;
-    box.querySelectorAll('[data-ta]').forEach(o => o.onclick = () => themAnh(ng.anh[+o.dataset.ta].url));
+    box.innerHTML = `<div class="muted" style="margin:8px 0">Bấm ảnh để thêm (URL công khai trên web). Ảnh trang gộp / trang khác KHÔNG mặc nhiên đúng máy này — duyệt ảnh phải ghi lý do.</div><div class="hn-anh">${ng.anh.map((a, i) => `<div class="o" data-ta="${i}" style="cursor:pointer"><img src="${esc(hnAnh(a.url, 'medium'))}" alt="" referrerpolicy="no-referrer"><div class="muted" style="font-size:11px">${esc(Dm.nguonAnh[a.nguon_loai] || '')} · ${esc(a.tu)}</div></div>`).join('') || '<div class="muted">Không có ảnh nguồn.</div>'}</div>`;
+    box.querySelectorAll('[data-ta]').forEach(o => o.onclick = () => themAnh({ url: ng.anh[+o.dataset.ta].url, nguon_loai: ng.anh[+o.dataset.ta].nguon_loai }));
   };
   const veNg = () => { $('hfNgThemDs').innerHTML = (d.nguon_them || []).map((x, i) => `<div class="muted">• <a href="${esc(x.url)}" target="_blank" rel="noopener">${esc(x.nhan || x.url)}</a> <a href="#" data-xng="${i}">xoá</a></div>`).join('');
     $('hfNgThemDs').querySelectorAll('[data-xng]').forEach(a => a.onclick = e => { e.preventDefault(); d.nguon_them.splice(+a.dataset.xng, 1); veNg(); }); };
@@ -1507,19 +1626,26 @@ async function hnSua(ma) {
   $('hfNgThem').onclick = () => { const u = $('hfNgUrl').value.trim(); if (!/^https?:\/\//.test(u)) { toast('Link nguồn phải bắt đầu bằng https://'); return; } d.nguon_them = d.nguon_them || []; d.nguon_them.push({ nhan: $('hfNgNhan').value.trim(), url: u }); $('hfNgUrl').value = $('hfNgNhan').value = ''; veNg(); };
   const luu = async duyet => {
     try {
-      const r = await call('hopNhapLuu', TOKEN, ma, d);
+      const r = await call('hopNhapLuu', TOKEN, ma, d, b.phien);
       await hnTai();
       const nb = HN.data.bai.find(x => x.ma === ma);
-      if (duyet) {
-        if (nb.loi.length) { toast('Đã lưu, chưa duyệt được: ' + nb.loi[0]); }
-        else { await call('hopNhapDuyet', TOKEN, [ma]); await hnTai(); toast('Đã lưu và duyệt.'); return ve(); }
+      if (duyet) {                            // duyệt bài KHÔNG tự duyệt ảnh / xác nhận dữ kiện — phải làm riêng từng điểm
+        if (nb.loi.length || Object.keys(nb.choXacNhan).length) toast('Đã lưu, chưa duyệt được: ' + (nb.loi[0] || Object.values(nb.choXacNhan)[0]));
+        else { await call('hopNhapDuyet', TOKEN, [ma]); await hnTai(); toast('Đã lưu và duyệt phiên bản ' + nb.phien + '.'); return ve(); }
       } else toast(r.doi.length ? 'Đã lưu: ' + r.doi.join(', ') + (r.trangThai === 'nhap' && b.trangThai !== 'nhap' ? ' — bài về Hộp nháp, cần duyệt lại' : '') : 'Không có gì thay đổi.');
-      $('hfLoi').innerHTML = nb.loi.length ? `<span class="tag" style="background:var(--bad-bg);color:var(--bad);white-space:normal">${nb.loi.length} lỗi: ${esc(nb.loi.join(' · '))}</span>` : '<span class="tag ok">Không lỗi</span>';
+      hnSua(ma);
     } catch (e) { toast(e.message); }
   };
   $('hfLuu').onclick = () => luu(false);
   $('hfDuyet').onclick = () => luu(true);
-  $('hfLoi').innerHTML = b.loi.length ? `<span class="tag" style="background:var(--bad-bg);color:var(--bad);white-space:normal" title="${esc(b.loi.join('\n'))}">${b.loi.length} lỗi: ${esc(b.loi[0])}</span>` : '<span class="tag ok">Không lỗi</span>';
+}
+function hnZoom(e) {
+  const t = e.target.closest && e.target.closest('[data-zoom]');
+  if (!t || VIEW !== 'hn') return;
+  const o = document.createElement('div');
+  o.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:50;display:flex;align-items:center;justify-content:center;cursor:zoom-out';
+  o.innerHTML = `<img src="${esc(t.dataset.zoom)}" referrerpolicy="no-referrer" style="max-width:94vw;max-height:94vh;background:#fff">`;
+  o.onclick = () => o.remove(); document.body.appendChild(o);
 }
 
 /* ============ Câu hỏi / việc ============ */
