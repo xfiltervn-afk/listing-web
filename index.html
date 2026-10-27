@@ -23,7 +23,8 @@
     taoTaiKhoanDau: a => ['/api/tao-tai-khoan-dau', { ten: a[0], mat_khau: a[1], ma: a[2] }, ''],
     login: a => ['/api/dang-nhap', { ten: a[0], mat_khau: a[1] }, ''],
     logout: a => ['/api/dang-xuat', {}, a[0]],
-    doiMatKhau: a => ['/api/doi-mat-khau', { cu: a[1], moi: a[2] }, a[0]] };
+    doiMatKhau: a => ['/api/doi-mat-khau', { cu: a[1], moi: a[2] }, a[0]],
+    hopNhapTaiAnh: a => ['/api/tai-anh', { ma: a[1], ten: a[2], data: a[3] }, a[0]] };   // ảnh gốc: body lớn hơn /api
   function goi(fn, args) {
     const [path, body, token] = RIENG[fn] ? RIENG[fn](args) : ['/api', { fn, args }, args[0]];
     const h = { 'Content-Type': 'application/json' };
@@ -1504,10 +1505,11 @@ async function hnSua(ma) {
     <div class="card hn-form"><div class="row" style="justify-content:space-between;align-items:center"><h2 style="margin:0">Ảnh chính <span id="hfAnhDem" class="muted" style="font-weight:400"></span></h2><button class="btn ghost chi-admin" id="hfDuyetBo" style="padding:4px 10px;font-size:13px">Duyệt cả bộ ảnh</button></div>
       <div class="muted" style="margin:4px 0 8px">Tối đa ${HN_ANH_TOI_DA} ảnh, ảnh 1 là bìa. Bấm ảnh để phóng to. Duyệt = anh đã xem đúng máy; ảnh mượn trang khác phải ghi lý do.</div>
       <div class="hn-anh" id="hfAnh"></div>
-      <div class="row" style="gap:6px;margin-top:8px"><input type="text" id="hfUrl" placeholder="URL ảnh (https://…)" style="flex:2"><button class="btn ghost" id="hfThemUrl">Thêm URL</button><button class="btn ghost" id="hfAnhNguon">Thêm từ nguồn ▾</button></div><div id="hfAnhNg"></div>
-      <div class="row" style="gap:6px;margin-top:8px"><input type="text" id="hfLocal" placeholder="Đường dẫn ảnh trên máy Master Listing (outputs/…)" style="flex:2"><button class="btn ghost" id="hfThemLocal">Thêm ảnh local</button></div><div class="muted" style="font-size:12px">Ảnh được giữ trên máy Master Listing, chưa tải lên Haravan. Chấp nhận JPG, PNG hoặc WebP trong outputs/ hoặc kho Drive Master Listing.</div>
+      <div class="row" style="gap:6px;margin-top:8px"><input type="text" id="hfUrl" placeholder="URL ảnh (https://…)" style="flex:2"><button class="btn ghost" id="hfThemUrl">Thêm URL</button><button class="btn ghost" id="hfAnhNguon">Thêm từ nguồn ▾</button></div>
+      <div class="row" style="gap:6px;margin-top:6px"><button class="btn" id="hfKhoMo">Thêm từ kho máy ▾</button><label class="btn ghost" style="cursor:pointer;margin:0">Tải ảnh lên<input type="file" id="hfTaiLen" accept="image/jpeg,image/png,image/webp" multiple style="display:none"></label><span class="muted" style="font-size:12px;align-self:center">Ảnh gốc lưu trên máy (kho ảnh gốc của bài) — Haravan chỉ là nơi đăng.</span></div>
+      <div id="hfKho"></div><div id="hfAnhNg"></div>
       ${(d.anh_nhap || []).length ? `<details style="margin-top:8px"><summary class="muted">Bố cục nháp (${d.anh_nhap.length}) — chỉ để tham khảo, không đăng</summary><div class="hn-anh" style="margin-top:6px">${d.anh_nhap.map(a => `<div class="o"><div data-file="${esc(a.file_local)}" class="muted" style="aspect-ratio:1/1">đang tải…</div><div class="muted" style="font-size:11px">${esc(a.file_local.split('/').pop())}</div></div>`).join('')}</div></details>` : ''}</div>
-    <div class="card hn-form"><h2>Ảnh phân loại</h2><div class="muted" style="margin-bottom:8px">Mỗi biến thể một ảnh (hiện khi khách chọn biến thể). Chọn từ ảnh chính hoặc dán URL.</div><div class="hn-anh" id="hfAnhPl"></div></div>
+    <div class="card hn-form"><h2>Ảnh phân loại</h2><div class="muted" style="margin-bottom:8px">Mỗi biến thể một ảnh (hiện khi khách chọn biến thể). Chọn từ ảnh chính, kho ảnh gốc trên máy hoặc dán URL.</div><div class="hn-anh" id="hfAnhPl"></div></div>
     <div class="card hn-form"><h2>Ghi chú</h2><input type="text" data-f="ghi_chu" value="${esc(d.ghi_chu || '')}" placeholder="Ghi chú nội bộ (không đăng)"></div>
     <details class="card"><summary><b>Nguồn</b> <span class="muted">(trang web cũ, listing Shopee cùng SKU, link tự thêm)</span></summary><div id="hfNguon" style="margin-top:8px"><div class="loading">Đang đọc nguồn…</div></div>
       <div class="hn-form"><label>Thêm nguồn</label><div class="row" style="gap:6px"><input type="text" id="hfNgNhan" placeholder="Tên (vd: tem máy, tài liệu hãng)" style="flex:1"><input type="text" id="hfNgUrl" placeholder="https://…" style="flex:2"><button class="btn ghost" id="hfNgThem">+ Thêm</button></div><div id="hfNgThemDs"></div></div></details>
@@ -1544,7 +1546,7 @@ async function hnSua(ma) {
     $('hfBt').querySelectorAll('[data-bt]').forEach(i => i.oninput = i.onchange = () => { const v = d.bien_the[+i.dataset.bt]; v[i.dataset.k] = i.dataset.k === 'gia' ? (parseInt(i.value.replace(/\D/g, ''), 10) || null) : i.value.trim(); if (i.dataset.k !== 'gia') veAnhPl(); });
     $('hfBt').querySelectorAll('[data-xbt]').forEach(a => a.onclick = e => { e.preventDefault(); d.bien_the.splice(+a.dataset.xbt, 1); veBt(); veAnhPl(); });
   };
-  $('hfThemBt').onclick = () => { d.bien_the = d.bien_the || []; d.bien_the.push({ ten: '', sku: '', gia: null, hanh_dong: '', variant_id: '', anh_url: '' }); veBt(); veAnhPl(); };
+  $('hfThemBt').onclick = () => { d.bien_the = d.bien_the || []; d.bien_the.push({ ten: '', sku: '', gia: null, hanh_dong: '', variant_id: '', anh_url: '', anh_file: '' }); veBt(); veAnhPl(); };
   // ---- ảnh
   const tag = (st, by) => `<span class="tag ${st === 'da_duyet' ? 'ok' : 'warn'}">${st === 'da_duyet' ? 'Đã duyệt' : 'Chờ duyệt'}</span>`;
   const veAnh = () => {
@@ -1555,7 +1557,7 @@ async function hnSua(ma) {
       ${a.url ? `<img src="${esc(hnAnh(a.url, 'medium'))}" alt="" referrerpolicy="no-referrer" data-zoom="${esc(hnAnh(a.url, 'master'))}">` : `<div data-file="${esc(a.file_local)}" class="muted" style="aspect-ratio:1/1">đang tải…</div>`}
       <div class="nut"><a href="#" data-am="${i}" data-dx="-1">←</a><b style="font-size:12px">${i === 0 ? 'Bìa' : i + 1}${i >= HN_ANH_TOI_DA ? ' · vượt 8' : ''}</b><a href="#" data-am="${i}" data-dx="1">→</a><a href="#" data-ax="${i}">Xoá</a></div>
       <input type="text" data-alt="${i}" value="${esc(a.alt || '')}" placeholder="alt">
-      <div style="font-size:12px;margin-top:4px">${tag(a.trang_thai)} <a href="#" class="chi-admin" data-dyanh="${i + 1}" data-v=""${a.trang_thai === 'da_duyet' ? 0 : 1}">${a.trang_thai === 'da_duyet' ? 'bỏ duyệt' : 'duyệt'}</a>${a.ghi_chu ? ' <span title="' + esc(a.ghi_chu) + '" style="color:var(--warn)">⚠</span>' : ''}</div></div>`).join('') || '<div class="muted">Chưa có ảnh.</div>';
+      <div style="font-size:12px;margin-top:4px">${tag(a.trang_thai)} <a href="#" class="chi-admin" data-dyanh="${i + 1}" data-v="${a.trang_thai === 'da_duyet' ? 0 : 1}">${a.trang_thai === 'da_duyet' ? 'bỏ duyệt' : 'duyệt'}</a>${a.ghi_chu ? ' <span title="' + esc(a.ghi_chu) + '" style="color:var(--warn)">⚠</span>' : ''}</div></div>`).join('') || '<div class="muted">Chưa có ảnh.</div>';
     const h = $('hfAnh');
     h.querySelectorAll('[data-am]').forEach(x => x.onclick = e => { e.preventDefault(); const i = +x.dataset.am, j = i + +x.dataset.dx; if (j < 0 || j >= d.anh.length) return; [d.anh[i], d.anh[j]] = [d.anh[j], d.anh[i]]; veAnh(); veAnhPl(); });
     h.querySelectorAll('[data-ax]').forEach(x => x.onclick = e => { e.preventDefault(); d.anh.splice(+x.dataset.ax, 1); veAnh(); veAnhPl(); });
@@ -1564,14 +1566,15 @@ async function hnSua(ma) {
     hnTaiFile();
   };
   const veAnhPl = () => {
-    const ds = d.anh || [];
+    const ds = d.anh || [], kho = (HN.kho || {}).anh || [];
     $('hfAnhPl').innerHTML = (d.bien_the || []).map((v, i) => `<div class="o"><b style="font-size:13px">${esc(v.ten || '(chưa đặt tên)')}</b><div class="muted sku" style="font-size:11px">${esc(v.sku || '')}</div>
-      ${v.anh_url ? `<img src="${esc(hnAnh(v.anh_url, 'medium'))}" alt="" referrerpolicy="no-referrer" data-zoom="${esc(hnAnh(v.anh_url, 'master'))}" style="margin-top:4px">` : '<div style="aspect-ratio:1/1;margin-top:4px;display:flex;align-items:center;justify-content:center;border:1px dashed var(--line);border-radius:6px;color:var(--muted);font-size:12px">chưa có ảnh</div>'}
-      <select data-pl="${i}" style="width:100%;font-size:12px;margin-top:4px"><option value="">— không đặt ảnh —</option>${ds.filter(a => a.url).map((a, k) => `<option value="${esc(a.url)}" ${v.anh_url === a.url ? 'selected' : ''}>Ảnh chính ${k + 1}</option>`).join('')}${v.anh_url && !ds.some(a => a.url === v.anh_url) ? `<option value="${esc(v.anh_url)}" selected>${v.anh_nguon === 'trang_cu' ? 'Ảnh biến thể đang có trên web' : 'URL riêng'}</option>` : ''}<option value="__url">Dán URL khác…</option></select>
-      ${v.anh_url ? `<div style="font-size:12px;margin-top:4px">${tag(v.anh_trang_thai)} <a href="#" class="chi-admin" data-dypl="${i + 1}" data-v=""${v.anh_trang_thai === 'da_duyet' ? 0 : 1}">${v.anh_trang_thai === 'da_duyet' ? 'bỏ duyệt' : 'duyệt'}</a></div>` : ''}</div>`).join('') || '<div class="muted">Chưa có biến thể.</div>';
+      ${v.anh_file ? `<div data-file="${esc(v.anh_file)}" class="muted" style="aspect-ratio:1/1;margin-top:4px">đang tải…</div>` : v.anh_url ? `<img src="${esc(hnAnh(v.anh_url, 'medium'))}" alt="" referrerpolicy="no-referrer" data-zoom="${esc(hnAnh(v.anh_url, 'master'))}" style="margin-top:4px">` : '<div style="aspect-ratio:1/1;margin-top:4px;display:flex;align-items:center;justify-content:center;border:1px dashed var(--line);border-radius:6px;color:var(--muted);font-size:12px">chưa có ảnh</div>'}
+      <select data-pl="${i}" style="width:100%;font-size:12px;margin-top:4px">${hnPlChon(v, ds, kho)}</select>
+      ${v.anh_url || v.anh_file ? `<div style="font-size:12px;margin-top:4px">${tag(v.anh_trang_thai)} <a href="#" class="chi-admin" data-dypl="${i + 1}" data-v="${v.anh_trang_thai === 'da_duyet' ? 0 : 1}">${v.anh_trang_thai === 'da_duyet' ? 'bỏ duyệt' : 'duyệt'}</a></div>` : ''}</div>`).join('') || '<div class="muted">Chưa có biến thể.</div>';
     $('hfAnhPl').querySelectorAll('[data-pl]').forEach(s2 => s2.onchange = () => { const v = d.bien_the[+s2.dataset.pl]; let u = s2.value;
-      if (u === '__url') { u = (prompt('URL ảnh phân loại (https://…):', '') || '').trim(); if (!/^https?:\/\//.test(u)) { veAnhPl(); return; } }
-      v.anh_url = u; veAnhPl(); });
+      if (u === '__url') { u = (prompt('URL ảnh phân loại (https://…):', '') || '').trim(); if (!/^https?:\/\//.test(u)) { veAnhPl(); return; } u = 'u:' + u; }
+      v.anh_url = u.startsWith('u:') ? u.slice(2) : ''; v.anh_file = u.startsWith('f:') ? u.slice(2) : ''; veAnhPl(); });
+    hnTaiFile();
     $('hfAnhPl').querySelectorAll('[data-dypl]').forEach(x => x.onclick = e => { e.preventDefault(); duyetAnh(['pl' + x.dataset.dypl], x.dataset.v === '1'); });
   };
   function hnTaiFile() { document.querySelectorAll('[data-file]').forEach(async el => {
@@ -1579,31 +1582,42 @@ async function hnSua(ma) {
       el.outerHTML = f.co ? `<img src="${f.data}" alt="" data-zoom="${f.data}" title="${esc(f.duong_dan)}">` : `<div style="aspect-ratio:1/1;display:flex;align-items:center;justify-content:center;border:1px dashed var(--bad);border-radius:6px;color:var(--bad);font-size:12px;text-align:center;padding:6px">FILE KHÔNG TỒN TẠI</div>`;
     } catch (e) { el.textContent = e.message; } }); }
   const duyetAnh = async (viTri, duyet) => {
-    if (JSON.stringify(d.anh) !== JSON.stringify(b.d.anh) || JSON.stringify((d.bien_the || []).map(v => v.anh_url || '')) !== JSON.stringify((b.d.bien_the || []).map(v => v.anh_url || ''))) { toast('Ảnh có thay đổi chưa lưu — bấm Lưu trước rồi mới duyệt.'); return; }
+    if (JSON.stringify(d.anh) !== JSON.stringify(b.d.anh) || JSON.stringify((d.bien_the || []).map(v => (v.anh_url || '') + '|' + (v.anh_file || ''))) !== JSON.stringify((b.d.bien_the || []).map(v => (v.anh_url || '') + '|' + (v.anh_file || '')))) { toast('Ảnh có thay đổi chưa lưu — bấm Lưu trước rồi mới duyệt.'); return; }
     const muon = viTri.filter(i => typeof i === 'number' && ['muon_trang_gop', 'trang_khac'].includes((d.anh[i - 1] || {}).nguon_loai));
     let gc = '';
     if (duyet && muon.length) { gc = prompt(`Ảnh ${muon.join(', ')} lấy từ trang khác. Duyệt = xác nhận ảnh đúng máy ${d.may}. Ghi lý do:`, ''); if (gc === null) return; if (!gc.trim()) { toast('Ảnh mượn phải ghi lý do.'); return; } }
     try { await call('hopNhapDuyetAnh', TOKEN, ma, b.phien, viTri, duyet, gc || ''); await hnTai(); hnSua(ma); } catch (e2) { toast(e2.message); }
   };
-  $('hfDuyetBo').onclick = () => duyetAnh((d.anh || []).map((a, i) => i + 1).filter(i => i <= HN_ANH_TOI_DA && d.anh[i - 1].trang_thai !== 'da_duyet').concat((d.bien_the || []).map((v, i) => [v, i + 1]).filter(([v]) => v.anh_url && v.anh_trang_thai !== 'da_duyet').map(([, i]) => 'pl' + i)), true);
+  $('hfDuyetBo').onclick = () => duyetAnh((d.anh || []).map((a, i) => i + 1).filter(i => i <= HN_ANH_TOI_DA && d.anh[i - 1].trang_thai !== 'da_duyet').concat((d.bien_the || []).map((v, i) => [v, i + 1]).filter(([v]) => (v.anh_url || v.anh_file) && v.anh_trang_thai !== 'da_duyet').map(([, i]) => 'pl' + i)), true);
   if (!hnSua.zoom) { document.addEventListener('click', hnZoom); hnSua.zoom = 1; }
   veBt(); veAnh(); veAnhPl();
   const themAnh = o => { d.anh = d.anh || []; if (d.anh.some(a => o.url ? a.url === o.url : o.file_local && a.file_local === o.file_local)) { toast('Ảnh đã có.'); return; }
     if (d.anh.length >= HN_ANH_TOI_DA) toast('Đã đủ 8 ảnh chính — ảnh mới nằm ngoài 8, bỏ bớt ảnh khác.');
     d.anh.push(Object.assign({ alt: (d.tieu_de + ' – ảnh ' + (d.anh.length + 1)).slice(0, 125), vai_tro: d.anh.length ? 'khac' : '01', ap_dung: 'tất cả biến thể', trang_thai: 'cho_duyet' }, o)); veAnh(); veAnhPl(); };
   $('hfThemUrl').onclick = () => { const u = $('hfUrl').value.trim(); if (!/^https?:\/\//.test(u)) { toast('URL ảnh phải bắt đầu bằng https://'); return; } themAnh({ url: u, nguon_loai: 'trang_khac' }); $('hfUrl').value = ''; };
-  $('hfThemLocal').onclick = async () => {
-    const p = $('hfLocal').value.trim();
-    if (!p) { toast('Nhập đường dẫn file ảnh trên máy Master Listing.'); return; }
-    const btn = $('hfThemLocal'); btn.disabled = true;
-    try {
-      const f = await call('hopNhapAnhFile', TOKEN, p);
-      if (!f.co) { toast('Không tìm thấy file ảnh trên máy Master Listing.'); return; }
-      themAnh({ file_local: f.duong_dan, nguon_loai: 'trang_khac', ghi_chu: 'Ảnh local; chưa tải lên Haravan. Cần kiểm tra đúng máy và nội dung trước khi duyệt.' });
-      $('hfLocal').value = '';
-    } catch (e) { toast(e.message); }
-    finally { btn.disabled = false; }
+  // ---- kho ảnh gốc trên máy (anh Trung 27/10: ảnh gốc nằm local, Haravan chỉ là nơi đăng)
+  HN.kho = null;
+  const veKho = () => {
+    const k = HN.kho; if (!k || !$('hfKho').dataset.mo) return;
+    const daCo = a => (d.anh || []).some(x => x.file_local === a.file_local);
+    $('hfKho').innerHTML = `<div class="muted" style="margin:8px 0;font-size:12px">Thư mục: <span class="sku" style="user-select:all">${esc(k.thu_muc)}</span> — chép ảnh vào đây hoặc bấm "Tải ảnh lên". Bấm ảnh để thêm vào ảnh chính; ảnh phân loại chọn ở khung "Ảnh phân loại".</div>
+      <div class="hn-anh">${k.anh.map((a, i) => `<div class="o" data-tk="${i}" style="cursor:pointer;${daCo(a) ? 'opacity:.55' : ''}"><div data-file="${esc(a.file_local)}" class="muted" style="aspect-ratio:1/1">đang tải…</div><div class="muted" style="font-size:11px;word-break:break-all">${esc(a.ten)} · ${a.kb} KB${daCo(a) ? ' · đã thêm' : ''}</div></div>`).join('') || '<div class="muted">Thư mục chưa có ảnh.</div>'}</div>`;
+    $('hfKho').querySelectorAll('[data-tk]').forEach(o => o.onclick = e => { e.stopPropagation(); themAnh({ file_local: k.anh[+o.dataset.tk].file_local, nguon_loai: 'kho_goc' }); veKho(); });
+    hnTaiFile();
   };
+  const taiKho = async () => { try { HN.kho = await call('hopNhapKho', TOKEN, ma); veKho(); veAnhPl(); } catch (e) { $('hfKho').innerHTML = '<div class="err">' + esc(e.message) + '</div>'; } };
+  $('hfKhoMo').onclick = () => { const h = $('hfKho'); if (h.dataset.mo) { delete h.dataset.mo; h.innerHTML = ''; return; } h.dataset.mo = '1'; h.innerHTML = '<div class="loading">Đang đọc kho ảnh…</div>'; taiKho(); };
+  $('hfTaiLen').onchange = async () => {
+    const fs = [...$('hfTaiLen').files]; $('hfTaiLen').value = '';
+    let n = 0;
+    for (const f of fs) {
+      if (f.size > 5e6) { toast(f.name + ': quá 5 MB'); continue; }
+      const data = await new Promise((ok, bad) => { const r = new FileReader(); r.onload = () => ok(r.result); r.onerror = bad; r.readAsDataURL(f); });
+      try { const r = await call('hopNhapTaiAnh', TOKEN, ma, f.name, data); n++; if (r.da_co) toast(f.name + ': ảnh đã có trong kho (' + r.ten + ')'); } catch (e) { toast(f.name + ': ' + e.message); }
+    }
+    if (n) { toast('Đã cất ' + n + ' ảnh vào kho ảnh gốc — bấm ảnh để thêm vào bài.'); $('hfKho').dataset.mo = '1'; await taiKho(); }
+  };
+  taiKho();
   // ---- trang hiện tại ↔ bản sẽ đăng (cuối trang)
   call('hopNhapHienTai', TOKEN, ma).then(ht => { HN.ht = ht; veBt(); veMoTa();
     const curId = {}; (ht.co ? ht.bien_the : []).forEach(v => curId[v.variant_id] = v);
@@ -1657,6 +1671,17 @@ async function hnSua(ma) {
   };
   $('hfLuu').onclick = () => luu(false);
   $('hfDuyet').onclick = () => luu(true);
+}
+/* Lựa chọn ảnh phân loại: ảnh chính (URL / file), ảnh trong kho ảnh gốc trên máy, URL riêng. Giá trị "u:<url>" hoặc "f:<file>". */
+function hnPlChon(v, ds, kho) {
+  const cur = v.anh_file ? 'f:' + v.anh_file : v.anh_url ? 'u:' + v.anh_url : '';
+  const o = [['', '— không đặt ảnh —']];
+  ds.forEach((a, k) => o.push([a.url ? 'u:' + a.url : 'f:' + a.file_local, 'Ảnh chính ' + (k + 1)]));
+  kho.forEach(a => o.push(['f:' + a.file_local, 'Kho máy: ' + a.ten]));
+  const seen = new Set(), out = o.filter(([val]) => !seen.has(val) && seen.add(val));
+  if (cur && !seen.has(cur)) out.push([cur, v.anh_file ? 'File: ' + v.anh_file.split('/').pop() : v.anh_nguon === 'trang_cu' ? 'Ảnh biến thể đang có trên web' : 'URL riêng']);
+  out.push(['__url', 'Dán URL khác…']);
+  return out.map(([val, t]) => `<option value="${esc(val)}" ${val === cur ? 'selected' : ''}>${esc(t)}</option>`).join('');
 }
 /* Hiện HTML mô tả ngay trong trang: chỉ giữ thẻ / thuộc tính an toàn (bỏ script, iframe, style, on*, javascript:) */
 function hnSach(html) {
