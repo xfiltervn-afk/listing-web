@@ -1505,6 +1505,7 @@ async function hnSua(ma) {
       <div class="muted" style="margin:4px 0 8px">Tối đa ${HN_ANH_TOI_DA} ảnh, ảnh 1 là bìa. Bấm ảnh để phóng to. Duyệt = anh đã xem đúng máy; ảnh mượn trang khác phải ghi lý do.</div>
       <div class="hn-anh" id="hfAnh"></div>
       <div class="row" style="gap:6px;margin-top:8px"><input type="text" id="hfUrl" placeholder="URL ảnh (https://…)" style="flex:2"><button class="btn ghost" id="hfThemUrl">Thêm URL</button><button class="btn ghost" id="hfAnhNguon">Thêm từ nguồn ▾</button></div><div id="hfAnhNg"></div>
+      <div class="row" style="gap:6px;margin-top:8px"><input type="text" id="hfLocal" placeholder="Đường dẫn ảnh trên máy Master Listing (outputs/…)" style="flex:2"><button class="btn ghost" id="hfThemLocal">Thêm ảnh local</button></div><div class="muted" style="font-size:12px">Ảnh được giữ trên máy Master Listing, chưa tải lên Haravan. Chấp nhận JPG, PNG hoặc WebP trong outputs/ hoặc kho Drive Master Listing.</div>
       ${(d.anh_nhap || []).length ? `<details style="margin-top:8px"><summary class="muted">Bố cục nháp (${d.anh_nhap.length}) — chỉ để tham khảo, không đăng</summary><div class="hn-anh" style="margin-top:6px">${d.anh_nhap.map(a => `<div class="o"><div data-file="${esc(a.file_local)}" class="muted" style="aspect-ratio:1/1">đang tải…</div><div class="muted" style="font-size:11px">${esc(a.file_local.split('/').pop())}</div></div>`).join('')}</div></details>` : ''}</div>
     <div class="card hn-form"><h2>Ảnh phân loại</h2><div class="muted" style="margin-bottom:8px">Mỗi biến thể một ảnh (hiện khi khách chọn biến thể). Chọn từ ảnh chính hoặc dán URL.</div><div class="hn-anh" id="hfAnhPl"></div></div>
     <div class="card hn-form"><h2>Ghi chú</h2><input type="text" data-f="ghi_chu" value="${esc(d.ghi_chu || '')}" placeholder="Ghi chú nội bộ (không đăng)"></div>
@@ -1587,10 +1588,22 @@ async function hnSua(ma) {
   $('hfDuyetBo').onclick = () => duyetAnh((d.anh || []).map((a, i) => i + 1).filter(i => i <= HN_ANH_TOI_DA && d.anh[i - 1].trang_thai !== 'da_duyet').concat((d.bien_the || []).map((v, i) => [v, i + 1]).filter(([v]) => v.anh_url && v.anh_trang_thai !== 'da_duyet').map(([, i]) => 'pl' + i)), true);
   if (!hnSua.zoom) { document.addEventListener('click', hnZoom); hnSua.zoom = 1; }
   veBt(); veAnh(); veAnhPl();
-  const themAnh = o => { d.anh = d.anh || []; if (d.anh.some(a => a.url === o.url)) { toast('Ảnh đã có.'); return; }
+  const themAnh = o => { d.anh = d.anh || []; if (d.anh.some(a => o.url ? a.url === o.url : o.file_local && a.file_local === o.file_local)) { toast('Ảnh đã có.'); return; }
     if (d.anh.length >= HN_ANH_TOI_DA) toast('Đã đủ 8 ảnh chính — ảnh mới nằm ngoài 8, bỏ bớt ảnh khác.');
     d.anh.push(Object.assign({ alt: (d.tieu_de + ' – ảnh ' + (d.anh.length + 1)).slice(0, 125), vai_tro: d.anh.length ? 'khac' : '01', ap_dung: 'tất cả biến thể', trang_thai: 'cho_duyet' }, o)); veAnh(); veAnhPl(); };
   $('hfThemUrl').onclick = () => { const u = $('hfUrl').value.trim(); if (!/^https?:\/\//.test(u)) { toast('URL ảnh phải bắt đầu bằng https://'); return; } themAnh({ url: u, nguon_loai: 'trang_khac' }); $('hfUrl').value = ''; };
+  $('hfThemLocal').onclick = async () => {
+    const p = $('hfLocal').value.trim();
+    if (!p) { toast('Nhập đường dẫn file ảnh trên máy Master Listing.'); return; }
+    const btn = $('hfThemLocal'); btn.disabled = true;
+    try {
+      const f = await call('hopNhapAnhFile', TOKEN, p);
+      if (!f.co) { toast('Không tìm thấy file ảnh trên máy Master Listing.'); return; }
+      themAnh({ file_local: f.duong_dan, nguon_loai: 'trang_khac', ghi_chu: 'Ảnh local; chưa tải lên Haravan. Cần kiểm tra đúng máy và nội dung trước khi duyệt.' });
+      $('hfLocal').value = '';
+    } catch (e) { toast(e.message); }
+    finally { btn.disabled = false; }
+  };
   // ---- trang hiện tại ↔ bản sẽ đăng (cuối trang)
   call('hopNhapHienTai', TOKEN, ma).then(ht => { HN.ht = ht; veBt(); veMoTa();
     const curId = {}; (ht.co ? ht.bien_the : []).forEach(v => curId[v.variant_id] = v);
