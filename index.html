@@ -1484,6 +1484,7 @@ async function hnSua(ma) {
       ${xoaCho.length ? `<div class="muted" style="margin-top:4px">Biến thể máy khác trên trang (${xoaCho.map(c => esc(c.ten)).join(', ')}) sẽ gỡ sau khi trang của máy đó đã đăng.</div>` : ''}
       ${b.ketQua && b.trangThai !== 'nhap' ? `<div class="muted" style="margin-top:4px">${esc(b.ketQua)}</div>` : ''}</div>
     ${choDuKien.length ? `<div class="card"><h2>Cần anh xác nhận</h2><div class="muted">Ghi bằng chứng (tem máy, tài liệu hãng…) rồi bấm Xác nhận — hoặc sửa nội dung cho hết câu đó.</div>
+      ${choDuKien.length > 1 ? `<div class="row chi-admin" style="gap:6px;margin-top:8px;align-items:center"><span style="flex:2;min-width:220px"><b>Xác nhận nhanh tất cả ${choDuKien.length} điểm</b> <span class="muted">— ô nào đã ghi riêng thì dùng ghi chú riêng</span></span><input type="text" id="hfXnChung" placeholder="Lý do chung (bỏ trống = Anh xác nhận nhanh)" style="flex:2;min-width:180px"><button class="btn chi-admin" id="hfXnTatCa">Xác nhận tất cả</button></div>` : ''}
       ${choDuKien.map(([k, v]) => `<div class="row" style="gap:6px;margin-top:8px;align-items:center"><span style="flex:2;min-width:220px">⚠ ${esc(v)}</span><input type="text" class="chi-admin" data-xnk="${esc(k)}" placeholder="Bằng chứng / lý do" style="flex:2;min-width:180px"><button class="btn ghost chi-admin" data-xn="${esc(k)}">Xác nhận</button></div>`).join('')}</div>` : ''}
     <div class="card hn-form"><h2>Thông tin cơ bản</h2>
       <div class="row" style="gap:10px"><div style="flex:1;min-width:180px"><label>Việc</label><select data-f="viec">${HN_VIEC.map(v => `<option ${String(d.viec).startsWith(v.split(' (')[0]) ? 'selected' : ''}>${v}</option>`).join('')}${HN_VIEC.includes(d.viec) ? '' : `<option selected>${esc(d.viec)}</option>`}</select></div>
@@ -1536,6 +1537,19 @@ async function hnSua(ma) {
     const k = btn.dataset.xn, gc = document.querySelector(`[data-xnk="${CSS.escape(k)}"]`).value.trim();
     try { await call('hopNhapXacNhan', TOKEN, ma, k, gc); await hnTai(); toast('Đã xác nhận.'); hnSua(ma); } catch (e) { toast(e.message); }
   });
+  if ($('hfXnTatCa')) $('hfXnTatCa').onclick = async () => {
+    // Từng điểm vẫn đi qua hopNhapXacNhan (có dấu vết riêng); ô ghi riêng > lý do chung > câu mặc định
+    const chung = $('hfXnChung').value.trim() || 'Anh xác nhận nhanh (Xác nhận tất cả)';
+    $('hfXnTatCa').disabled = true;
+    let ok = 0; const loi = [];
+    for (const [k] of choDuKien) {
+      const rieng = (document.querySelector(`[data-xnk="${CSS.escape(k)}"]`) || {}).value;
+      try { await call('hopNhapXacNhan', TOKEN, ma, k, (rieng || '').trim() || chung); ok++; } catch (e) { loi.push(e.message); }
+    }
+    await hnTai().catch(() => {});
+    toast(`Đã xác nhận ${ok}/${choDuKien.length} điểm.` + (loi.length ? ' Lỗi: ' + loi[0] : ''));
+    hnSua(ma);
+  };
   // ---- biến thể (gọn: tên / SKU / giá; chỉ hỏi variant_id khi máy không tự ghép được)
   const veBt = () => {
     const cur = (HN.ht && HN.ht.co) ? HN.ht.bien_the : [];
