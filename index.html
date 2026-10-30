@@ -1286,7 +1286,9 @@ async function openPheu(ho) {
 /* ============ Hộp nháp — bài web chờ đăng (anh Trung 26/10/2026, Note 56; làm giống Hộp nháp BigSeller) ============
    Danh sách: ảnh + TIÊU ĐỀ | SKU | GIÁ (mỗi biến thể một dòng) | cập nhật | thao tác. Trạng thái: Hộp nháp → Chờ đăng → Đang đăng →
    Đã đăng / Đăng lỗi. Sửa từng bài ở trang Chỉnh sửa; sửa sau khi duyệt → về Hộp nháp (duyệt lại đúng phiên bản). */
-let HN = { tt: 'nhap', nhom: '', viec: '', loi: false, gia: false, q: '', trang: 1, chon: new Set(), data: null, sua: null, skuDs: null };
+let HN = { kenh: 'lockhixanh.vn', tt: 'nhap', nhom: '', viec: '', loi: false, gia: false, q: '', trang: 1, chon: new Set(), data: null, sua: null, skuDs: {} };
+/* Web của bài (30/10/2026: thêm xfilter.vn). Cấu hình từng web do máy chủ trả trong hopNhap().kenh; thiếu (bản cũ) thì coi như LKX. */
+function hnK(b) { const k = (b && (b.kenh || (b.d && b.d.kenh))) || 'lockhixanh.vn'; return Object.assign({ ten: 'Lọc Khí Xanh', web: 'https://lockhixanh.vn', admin: 'https://lockhixanh.myharavan.com/admin/products/', nhanGia: 'Shopee LKX', moTa: '1 trang = 1 máy', mau: true }, ((HN.data || {}).kenh || {})[k] || {}, { ma: k }); }
 const HN_TT = [['nhap', 'Hộp nháp'], ['cho_dang', 'Chờ đăng'], ['dang_dang', 'Đang đăng'], ['da_luu', 'Đã lưu (ẩn / chờ đối chiếu)'], ['da_dang', 'Đã đăng'], ['loi', 'Đăng lỗi'], ['bo', 'Đã bỏ']];
 const HN_MOI_TRANG = 50;
 function hnAnh(u, co) { return String(u || '').replace(/^\/\//, 'https://').replace(/(_(small|medium|large|grande|compact|thumb|master))?(\.[a-z]+)(\?.*)?$/i, '_' + co + '$3'); }
@@ -1296,7 +1298,9 @@ async function hnTai() { HN.data = await call('hopNhap', TOKEN); D.hopNhapDem = 
 async function vHopNhap() {
   if (HN.sua) return hnSua(HN.sua);
   if (!HN.data) { $('main').innerHTML = '<div class="loading">Đang đọc Hộp nháp…</div>'; try { await hnTai(); } catch (e) { $('main').innerHTML = '<div class="card err">' + esc(e.message) + '</div>'; return; } }
-  const all = HN.data.bai;
+  const demKenh = {}; HN.data.bai.forEach(b => demKenh[hnK(b).ma] = (demKenh[hnK(b).ma] || 0) + 1);
+  if (!demKenh[HN.kenh] && Object.keys(demKenh).length) HN.kenh = Object.keys(demKenh)[0];
+  const all = HN.data.bai.filter(b => hnK(b).ma === HN.kenh), K = hnK({ kenh: HN.kenh });
   if (!all.length) { $('main').innerHTML = '<div class="card muted">Hộp nháp trống. Claude dựng nhóm bài (outputs/nhom-bai) rồi nạp lại dữ liệu.</div>'; return; }
   const demTT = {}; all.forEach(b => demTT[b.trangThai] = (demTT[b.trangThai] || 0) + 1);
   const theoTT = all.filter(b => b.trangThai === HN.tt);
@@ -1320,17 +1324,18 @@ async function vHopNhap() {
     bo: ['<button class="btn ghost" data-hb="khoiphuc">Khôi phục</button>'] }[HN.tt];
   $('main').innerHTML = `
     <div class="card">
+      ${Object.keys(demKenh).length > 1 ? `<div class="row" style="gap:6px;margin-bottom:8px">${Object.keys(demKenh).map(k => `<button class="btn ${HN.kenh === k ? '' : 'ghost'}" data-hk="${esc(k)}">Web ${esc(hnK({ kenh: k }).ten)} · ${esc(k)} (${demKenh[k]})</button>`).join('')}</div>` : ''}
       <div class="hn-tabs">${HN_TT.map(([k, t]) => `<a href="#" data-ht="${k}" class="${HN.tt === k ? 'on' : ''}">${t} <span class="${k === 'loi' && demTT[k] ? 'bad' : ''}">(${demTT[k] || 0})</span></a>`).join('')}</div>
-      <div class="muted" style="margin-bottom:8px">Bài web lockhixanh.vn (1 trang = 1 máy). Xem tiêu đề, SKU, giá → <b>Chỉnh sửa</b> → duyệt ảnh, xác nhận dữ kiện → <b>Duyệt</b>.
+      <div class="muted" style="margin-bottom:8px">Bài web ${esc(K.ma)} (${esc(K.moTa)}). Xem tiêu đề, SKU, giá → <b>Chỉnh sửa</b> → duyệt ảnh, xác nhận dữ kiện → <b>Duyệt</b>.
         Chờ đăng → <b>Tải lên</b> = gói giao Codex (bản chụp cố định, có mã gói). Codex làm xong → <b>Nhận kết quả</b> → app đối chiếu web công khai (Đã đăng / Đăng lỗi; trang ẩn ở "Đã lưu").</div>
-      <div class="row" style="gap:6px"><select id="hnNhom" style="max-width:220px"><option value="">Mọi hãng</option>${nhoms.map(([m, t]) => `<option value="${esc(m)}" ${HN.nhom === m ? 'selected' : ''}>${esc(t.replace('lockhixanh.vn · ', ''))} (${all.filter(b => b.nhom === m && b.trangThai === HN.tt).length})</option>`).join('')}</select>
+      <div class="row" style="gap:6px"><select id="hnNhom" style="max-width:220px"><option value="">Mọi hãng</option>${nhoms.map(([m, t]) => `<option value="${esc(m)}" ${HN.nhom === m ? 'selected' : ''}>${esc(t.replace(/^[^·]*· /, ''))} (${all.filter(b => b.nhom === m && b.trangThai === HN.tt).length})</option>`).join('')}</select>
         <select id="hnViec" style="max-width:180px">${[['', 'Mọi việc'], ['Sửa', 'Sửa trang cũ'], ['Tạo', 'Tạo mới (tách)'], ['Bật', 'Bật hiện']].map(([k, t]) => `<option value="${k}" ${HN.viec === k ? 'selected' : ''}>${t}</option>`).join('')}</select>
         <label class="muted"><input type="checkbox" id="hnLoi" ${HN.loi ? 'checked' : ''}> Chỉ bài còn lỗi</label>
         <label class="muted"><input type="checkbox" id="hnGiaBT" ${HN.gia ? 'checked' : ''}> Chỉ giá bất thường</label>
         <input id="hnQ" class="search" type="search" placeholder="Tìm tiêu đề / SKU / máy" value="${esc(HN.q)}" style="flex:1;min-width:180px"></div>
     </div>
     <div class="card" style="padding-top:8px">
-      <div class="hn-bar"><span class="chi-admin" style="display:contents">${nut.join('')}<button class="btn ghost" data-hb="mau">Mẫu bài / mẫu giá</button></span>
+      <div class="hn-bar"><span class="chi-admin" style="display:contents">${nut.join('')}${K.mau ? '<button class="btn ghost" data-hb="mau">Mẫu bài / mẫu giá</button>' : ''}</span>
         <span class="muted">Đã chọn <b id="hnSoChon">${HN.chon.size}</b> / ${tong}</span><span style="flex:1"></span>
         <span class="muted">${tong ? (HN.trang - 1) * HN_MOI_TRANG + 1 : 0}–${Math.min(HN.trang * HN_MOI_TRANG, tong)} / ${tong}</span>
         <button class="btn ghost" data-hp="-1" ${HN.trang <= 1 ? 'disabled' : ''}>‹</button><button class="btn ghost" data-hp="1" ${HN.trang >= soTrang ? 'disabled' : ''}>›</button></div>
@@ -1339,6 +1344,7 @@ async function vHopNhap() {
       ${trang.map(hnDong).join('') || '<tr><td colspan="6" class="muted">Không có bài.</td></tr>'}</table></div>
     </div>`;
   document.querySelectorAll('[data-ht]').forEach(a => a.onclick = e => { e.preventDefault(); HN.tt = a.dataset.ht; HN.trang = 1; HN.chon.clear(); vHopNhap(); });
+  document.querySelectorAll('[data-hk]').forEach(a => a.onclick = () => { HN.kenh = a.dataset.hk; HN.nhom = ''; HN.trang = 1; HN.chon.clear(); vHopNhap(); });
   $('hnNhom').onchange = e => { HN.nhom = e.target.value; HN.trang = 1; vHopNhap(); };
   $('hnViec').onchange = e => { HN.viec = e.target.value; HN.trang = 1; vHopNhap(); };
   $('hnLoi').onchange = e => { HN.loi = e.target.checked; HN.trang = 1; vHopNhap(); };
@@ -1353,12 +1359,12 @@ async function vHopNhap() {
   document.querySelectorAll('[data-hb]').forEach(b => b.onclick = () => hnNutBar(b.dataset.hb));
 }
 function hnDong(b) {
-  const d = b.d, bt = d.bien_the || [];
+  const d = b.d, bt = d.bien_the || [], K = hnK(b);
   const anh = (d.anh || [])[0];
   return `<tr><td><input type="checkbox" data-hc="${esc(b.ma)}" ${HN.chon.has(b.ma) ? 'checked' : ''}></td>
     <td><div class="hn-sp">${anh ? `<img loading="lazy" src="${esc(hnAnh(anh.url, 'small'))}" alt="" referrerpolicy="no-referrer">` : '<img alt="">'}
       <div style="min-width:0"><div class="ten" data-hs="${esc(b.ma)}">${esc(d.tieu_de)}</div>
-      <div class="muted" style="font-size:12px">${esc(d.viec)} · ${esc(b.tenNhom.replace('lockhixanh.vn · ', ''))}${d.ma_listing ? ' · ' + esc(d.ma_listing) : ''}${d.ban_90 ? ' · bán 90 ngày ' + fmt(num(d.ban_90)) : ''}</div>
+      <div class="muted" style="font-size:12px">${esc(d.viec)} · ${esc(b.tenNhom.replace(/^[^·]*· /, ''))}${d.ma_listing ? ' · ' + esc(d.ma_listing) : ''}${d.ban_90 ? ' · bán 90 ngày ' + fmt(num(d.ban_90)) : ''}</div>
       ${b.loi.length ? `<div><span class="tag" style="background:var(--bad-bg);color:var(--bad);white-space:normal" title="${esc(b.loi.join('\n'))}">${b.loi.length} lỗi: ${esc(b.loi[0])}${b.loi.length > 1 ? '…' : ''}</span></div>` : ''}
       ${Object.keys(b.choXacNhan || {}).length ? `<span class="tag warn" title="${esc(Object.values(b.choXacNhan).join('\n'))}">${Object.keys(b.choXacNhan).length} chờ anh chốt</span>` : ''}
       ${(b.phuThuoc || []).length ? `<span class="tag info" title="${esc(b.phuThuoc.map(x => x.ten + ' chờ ' + x.cho.join(', ')).join('\n'))}">${b.phuThuoc.length} bước xoá chờ trang khác</span>` : ''}
@@ -1366,12 +1372,12 @@ function hnDong(b) {
       ${b.luu.some(x => x.startsWith('Giá bất thường')) ? '<span class="tag warn">giá bất thường</span>' : ''}
       ${b.ketQua && ['dang_dang', 'da_dang', 'loi'].includes(b.trangThai) ? `<div class="muted" style="font-size:12px">${esc(b.ketQua)}</div>` : ''}</div></div></td>
     <td>${bt.map(v => `<div class="hn-bt"><span class="sku">${esc(v.sku || '—')}</span><small>${esc(v.ten)}</small></div>`).join('') || '<span class="muted">—</span>'}</td>
-    <td class="num">${bt.map(v => `<div class="hn-bt">${v.gia ? '<b>' + hnGia(v.gia) + '</b>' : '<b style="color:var(--bad)">chưa có</b>'}<small>${v.gia_shopee_lkx ? 'Shopee LKX ' + fmt(v.gia_shopee_lkx) : '&nbsp;'}</small></div>`).join('')}</td>
+    <td class="num">${bt.map(v => `<div class="hn-bt">${v.gia ? '<b>' + hnGia(v.gia) + '</b>' : '<b style="color:var(--bad)">chưa có</b>'}<small>${v.gia_shopee_lkx ? esc(K.nhanGia) + ' ' + fmt(v.gia_shopee_lkx) : '&nbsp;'}</small></div>`).join('')}</td>
     <td class="hide-m muted" style="font-size:12px;white-space:nowrap">${esc(String(b.capNhat).slice(0, 16))}<br>${esc(b.nguoi || '')}</td>
     <td class="hn-thao"><a data-hs="${esc(b.ma)}">Chỉnh sửa</a>
       ${b.trangThai === 'nhap' ? `<a class="chi-admin" data-ha="duyet" data-ma="${esc(b.ma)}" ${b.loi.length || Object.keys(b.choXacNhan || {}).length ? 'style="color:var(--muted)" title="Còn lỗi / điểm chờ chốt"' : ''}>Duyệt</a><a class="chi-admin" data-ha="bo" data-ma="${esc(b.ma)}">Bỏ</a>` : ''}
       ${b.trangThai === 'cho_dang' ? `<a class="chi-admin" data-ha="goi" data-ma="${esc(b.ma)}">Tải lên (gói)</a>` : ''}
-      ${d.handle && !String(d.viec).startsWith('Tạo') ? `<a href="https://lockhixanh.vn/products/${esc(d.handle)}" target="_blank" rel="noopener">Xem web ↗</a>` : ''}
+      ${d.handle && !String(d.viec).startsWith('Tạo') ? `<a href="${esc(K.web)}/products/${esc(d.handle)}" target="_blank" rel="noopener">Xem web ↗</a>` : ''}
       <a data-hl="${esc(b.ma)}">Lịch sử</a></td></tr>`;
 }
 async function hnHanhDong(viec, ds) {
@@ -1469,7 +1475,9 @@ async function hnSua(ma) {
   if (!HN.data) { $('main').innerHTML = '<div class="loading">Đang đọc bài…</div>'; try { await hnTai(); } catch (e) { $('main').innerHTML = '<div class="card err">' + esc(e.message) + '</div>'; return; } }
   const b = HN.data.bai.find(x => x.ma === ma);
   if (!b) { HN.sua = null; return vHopNhap(); }
-  if (!HN.skuDs) { try { const t = await call('bangSku', TOKEN); HN.skuDs = objs(t.mlkk).map(x => x['SKU chuẩn']).filter(Boolean); } catch (e) { HN.skuDs = []; } }
+  const K = hnK(b);
+  if (!HN.skuDs[K.ma]) { try { const t = await call('bangSku', TOKEN), oto = objs(t.tongHop).map(x => x['SKU chuẩn']).filter(Boolean);   // xfilter: SKU ô tô + bản ++
+    HN.skuDs[K.ma] = K.mau ? objs(t.mlkk).map(x => x['SKU chuẩn']).filter(Boolean) : [...new Set([...oto, ...objs(t.dieuHoa).map(x => x['SKU chuẩn'] && x['SKU chuẩn'] + '++').filter(Boolean)])]; } catch (e) { HN.skuDs[K.ma] = []; } }
   const d = JSON.parse(JSON.stringify(b.d)), Dm = HN.data, tt = Object.fromEntries(HN_TT);
   HN.ht = null;
   const cho = Object.entries(b.choXacNhan || {}), choDuKien = cho.filter(([k]) => !k.startsWith('anh')), soAnhCho = cho.length - choDuKien.length;
@@ -1477,7 +1485,7 @@ async function hnSua(ma) {
   $('main').innerHTML = `
     <div class="hn-top"><button class="btn ghost" id="hfVe">‹ Hộp nháp</button><b style="flex:1;min-width:200px">${esc(d.tieu_de)}</b>
       <span class="tag info">${esc(tt[b.trangThai])}</span><button class="btn ghost" id="hfLuu">Lưu</button><button class="btn chi-admin" id="hfDuyet">Lưu &amp; duyệt</button></div>
-    <div class="card" style="padding:10px 16px"><div class="muted">${esc(d.may)} · ${esc(d.viec)} · ${d.id_haravan ? `ID <a href="https://lockhixanh.myharavan.com/admin/products/${esc(d.id_haravan)}" target="_blank" rel="noopener">${esc(d.id_haravan)} ↗</a>` : 'trang mới'} · phiên bản <span class="sku">${esc(b.phien)}</span>${b.goi ? ' · gói ' + esc(b.goi) : ''}</div>
+    <div class="card" style="padding:10px 16px"><div class="muted">${esc(d.may)} · ${esc(d.viec)} · ${d.id_haravan ? `ID <a href="${esc(K.admin)}${esc(d.id_haravan)}" target="_blank" rel="noopener">${esc(d.id_haravan)} ↗</a>` : 'trang mới'} · phiên bản <span class="sku">${esc(b.phien)}</span>${b.goi ? ' · gói ' + esc(b.goi) : ''}</div>
       ${b.loi.length ? `<div style="margin-top:4px;color:var(--bad)"><b>Cần sửa:</b> ${b.loi.map(esc).join(' · ')}</div>` : ''}
       ${cho.length ? `<div style="margin-top:4px;color:var(--warn)"><b>Chờ anh chốt:</b> ${soAnhCho ? soAnhCho + ' ảnh chưa duyệt' : ''}${soAnhCho && choDuKien.length ? ' · ' : ''}${choDuKien.length ? choDuKien.length + ' điểm cần xác nhận (ở dưới)' : ''}</div>` : ''}
       ${!b.loi.length && !cho.length ? '<div style="margin-top:4px"><span class="tag ok">Sẵn sàng duyệt</span></div>' : ''}
@@ -1491,7 +1499,7 @@ async function hnSua(ma) {
         <div style="flex:1;min-width:180px"><label>Máy</label><input type="text" data-f="may" value="${esc(d.may)}"></div>
         <div style="flex:1;min-width:140px"><label>ID Haravan</label><input type="text" data-f="id_haravan" value="${esc(d.id_haravan || '')}"></div></div>
       <label>Tiêu đề <span data-dem="tieu_de"></span></label><input type="text" data-f="tieu_de" value="${esc(d.tieu_de)}">
-      <label>URL: lockhixanh.vn/products/</label><input type="text" data-f="handle" value="${esc(d.handle)}">
+      <label>URL: ${esc(K.ma)}/products/</label><input type="text" data-f="handle" value="${esc(d.handle)}">
       <label>SEO title <span data-dem="seo_title"></span></label><input type="text" data-f="seo_title" value="${esc(d.seo_title)}">
       <label>Meta description <span data-dem="meta_description"></span></label><input type="text" data-f="meta_description" value="${esc(d.meta_description)}">
       <label>Nội dung chi tiết <span id="hfMtDem" class="muted"></span></label>
@@ -1499,10 +1507,12 @@ async function hnSua(ma) {
         <button class="btn ghost" id="hfMtTuCu">Sửa nội dung</button><button class="btn ghost" id="hfMtNguon" style="display:none">Lấy từ trang nguồn</button></div>
       <div id="hfMtGhi" class="muted" style="margin:4px 0"></div><div id="hfMtMoi" class="hn-mt"></div>
       <details id="hfMtSua" ${d.mo_ta_che_do === 'thay' ? 'open' : ''} style="margin-top:6px"><summary>Sửa HTML</summary><textarea data-f="mo_ta_html" style="min-height:260px">${esc(d.mo_ta_html || '')}</textarea></details></div>
-    <div class="card hn-form"><h2>Biến thể · SKU · giá</h2><datalist id="hfSku">${(HN.skuDs || []).map(x => `<option value="${esc(x)}">`).join('')}</datalist>
-      <div class="scroll"><table><tr><th>Tên biến thể</th><th>SKU</th><th class="num">Giá web (₫)</th><th class="num hide-m">Shopee LKX</th><th></th></tr><tbody id="hfBt"></tbody></table></div>
+    <div class="card hn-form"><h2>Biến thể · SKU · giá</h2><datalist id="hfSku">${(HN.skuDs[K.ma] || []).map(x => `<option value="${esc(x)}">`).join('')}</datalist>
+      <div class="scroll"><table><tr><th>Tên biến thể</th><th>SKU</th><th class="num">Giá web (₫)</th><th class="num hide-m">${esc(K.nhanGia)}</th><th></th></tr><tbody id="hfBt"></tbody></table></div>
       <button class="btn ghost" id="hfThemBt" style="margin-top:8px">+ Thêm biến thể</button>
-      ${(d.bien_the_cu || []).filter(c => c.quyet === 'giu').length ? `<div class="muted" style="margin-top:6px">Trang còn ${(d.bien_the_cu || []).filter(c => c.quyet === 'giu').length} biến thể khác (${(d.bien_the_cu || []).filter(c => c.quyet === 'giu').map(c => esc(c.ten)).join(', ')}) — giữ nguyên, không đụng.</div>` : ''}</div>
+      ${(d.bien_the_cu || []).some(c => !['sua', 'xoa', 'giu'].includes(c.quyet) || (!K.mau && c.quyet !== 'sua')) ? `<div style="margin-top:8px"><b>Biến thể đang có trên web chưa ghép vào bài</b> <span class="muted">— chọn giữ hay xoá khi đăng</span>
+        ${(d.bien_the_cu || []).map((c, i) => c.quyet === 'sua' ? '' : `<div class="row" style="gap:6px;align-items:center;margin-top:4px"><span style="flex:1">${esc(c.ten)} · ${esc(c.sku_web || 'không SKU')} · ${fmt(c.gia)}</span><select data-cu="${i}" ${c.quyet ? '' : 'style="border-color:var(--bad)"'}><option value="">— chưa quyết —</option><option value="giu" ${c.quyet === 'giu' ? 'selected' : ''}>Giữ trên web</option><option value="xoa" ${c.quyet === 'xoa' ? 'selected' : ''}>Xoá khi đăng</option></select></div>`).join('')}</div>` : ''}
+      ${K.mau && (d.bien_the_cu || []).filter(c => c.quyet === 'giu').length ? `<div class="muted" style="margin-top:6px">Trang còn ${(d.bien_the_cu || []).filter(c => c.quyet === 'giu').length} biến thể khác (${(d.bien_the_cu || []).filter(c => c.quyet === 'giu').map(c => esc(c.ten)).join(', ')}) — giữ nguyên, không đụng.</div>` : ''}</div>
     <div class="card hn-form"><div class="row" style="justify-content:space-between;align-items:center"><h2 style="margin:0">Ảnh chính <span id="hfAnhDem" class="muted" style="font-weight:400"></span></h2><button class="btn ghost chi-admin" id="hfDuyetBo" style="padding:4px 10px;font-size:13px">Duyệt cả bộ ảnh</button></div>
       <div class="muted" style="margin:4px 0 8px">Tối đa ${HN_ANH_TOI_DA} ảnh, ảnh 1 là bìa. Bấm ảnh để phóng to. Duyệt = anh đã xem đúng máy; ảnh mượn trang khác phải ghi lý do.</div>
       <div class="hn-anh" id="hfAnh"></div>
@@ -1653,11 +1663,12 @@ async function hnSua(ma) {
       <tr><th>Ảnh chính</th><td>${ht.co ? strip(anhCu) + '<div class="muted">' + anhCu.length + ' ảnh · có alt ' + anhCu.filter(a => a.alt).length + '</div>' : '—'}</td><td style="${doiAnh ? 'background:#fff6d6' : ''}">${strip(anhMoi.filter(a => a.url))}<div class="muted">${anhMoi.length} ảnh · có alt ${anhMoi.filter(a => a.alt).length}</div></td></tr></table></div>`;
   }).catch(e => { $('hfSoSanh').innerHTML = '<div class="err">' + esc(e.message) + '</div>'; });
   // ---- nguồn (gập)
+  document.querySelectorAll('[data-cu]').forEach(x => x.onchange = () => { d.bien_the_cu[+x.dataset.cu].quyet = x.value; x.style.borderColor = x.value ? '' : 'var(--bad)'; });
   let ng = null;
   call('hopNhapNguon', TOKEN, ma).then(n => { ng = n;
     const tn = (n.web || []).find(w => w.mo_ta_html && w.handle !== d.handle);
     if (tn) { mtNguon = tn; $('hfMtNguon').style.display = ''; $('hfMtNguon').title = 'Từ: ' + tn.ten; }
-    $('hfNguon').innerHTML = `${n.web.map(w => `<div class="muted">• <a href="https://lockhixanh.vn/products/${esc(w.handle)}" target="_blank" rel="noopener">${esc(w.ten)}</a> · ${esc(w.ly_do)}</div>`).join('')}
+    $('hfNguon').innerHTML = `${n.web.map(w => `<div class="muted">• <a href="${esc(K.web)}/products/${esc(w.handle)}" target="_blank" rel="noopener">${esc(w.ten)}</a> · ${esc(w.ly_do)}</div>`).join('')}
       ${n.shopee.slice(0, 10).map(x => `<div class="muted">• <a href="${esc(x.link)}" target="_blank" rel="noopener">${esc(x.ma)} · ${esc(x.shop)}</a> ${esc(x.ten.slice(0, 70))}</div>`).join('')}`;
   }).catch(e => { $('hfNguon').innerHTML = '<div class="err">' + esc(e.message) + '</div>'; });
   $('hfAnhNguon').onclick = () => {
