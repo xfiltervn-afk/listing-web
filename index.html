@@ -1450,7 +1450,7 @@ async function openPheu(ho) {
    Danh sách: ảnh + TIÊU ĐỀ | SKU | GIÁ (mỗi biến thể một dòng) | cập nhật | thao tác. Trạng thái: Hộp nháp → Chờ đăng → Đang đăng →
    Đã đăng / Đăng lỗi. Sửa từng bài ở trang Chỉnh sửa; sửa sau khi duyệt → về Hộp nháp (duyệt lại đúng phiên bản). */
 let HN = { kenh: 'lockhixanh.vn', tt: 'nhap', nhom: '', viec: '', loi: false, gia: false, q: '', trang: 1, chon: new Set(), data: null, sua: null, skuDs: {} };
-/* Web của bài (30/10/2026: thêm xfilter.vn). Cấu hình từng web do máy chủ trả trong hopNhap().kenh; thiếu (bản cũ) thì coi như LKX. */
+/* Web của bài (30/10/2026: thêm xfilter.vn; 01/11/2026: glunix.vn). Cấu hình từng web do máy chủ trả trong hopNhap().kenh; thiếu (bản cũ) thì coi như LKX. */
 function hnK(b) { const k = (b && (b.kenh || (b.d && b.d.kenh))) || 'lockhixanh.vn'; return Object.assign({ ten: 'Lọc Khí Xanh', web: 'https://lockhixanh.vn', admin: 'https://lockhixanh.myharavan.com/admin/products/', nhanGia: 'Shopee LKX', moTa: '1 trang = 1 máy', mau: true }, ((HN.data || {}).kenh || {})[k] || {}, { ma: k }); }
 const HN_TT = [['nhap', 'Hộp nháp'], ['cho_dang', 'Chờ đăng'], ['dang_dang', 'Đang đăng'], ['da_luu', 'Đã lưu (ẩn / chờ đối chiếu)'], ['da_dang', 'Đã đăng'], ['loi', 'Đăng lỗi'], ['bo', 'Đã bỏ']];
 const HN_MOI_TRANG = 50;
@@ -1639,6 +1639,7 @@ async function hnSua(ma) {
   const b = HN.data.bai.find(x => x.ma === ma);
   if (!b) { HN.sua = null; return vHopNhap(); }
   const K = hnK(b);
+  if (!HN.skuDs[K.ma] && (K.skuGoiY || []).length) HN.skuDs[K.ma] = K.skuGoiY;            // glunix.vn: SKU đang bán ở shop Shopee của kênh
   if (!HN.skuDs[K.ma]) { try { const t = await call('bangSku', TOKEN), oto = objs(t.tongHop).map(x => x['SKU chuẩn']).filter(Boolean);   // xfilter: SKU ô tô + bản ++
     HN.skuDs[K.ma] = K.mau ? objs(t.mlkk).map(x => x['SKU chuẩn']).filter(Boolean) : [...new Set([...oto, ...objs(t.dieuHoa).map(x => x['SKU chuẩn'] && x['SKU chuẩn'] + '++').filter(Boolean)])]; } catch (e) { HN.skuDs[K.ma] = []; } }
   const d = JSON.parse(JSON.stringify(b.d)), Dm = HN.data, tt = Object.fromEntries(HN_TT);
