@@ -77,7 +77,7 @@
   .stat.click:hover { border-color: var(--brand-2); }
   table { width: 100%; border-collapse: collapse; font-size: 14px; }
   th, td { text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
-  th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .03em; }
+  th { color: var(--muted); font-weight: 650; font-size: 12.5px; }
   td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
   .scroll { overflow-x: auto; }
   .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
@@ -108,10 +108,10 @@
   .hn-sp .ten:hover { color: var(--brand-2); text-decoration: underline; }
   .hn-bt { min-height: 34px; line-height: 1.25; padding: 4px 0; border-bottom: 1px dashed var(--line); }
   .hn-bt:last-child { border-bottom: 0; }
-  .hn-bt small { display: block; color: var(--muted); font-size: 11px; }
+  .hn-bt small { display: block; color: var(--muted); font-size: 12px; }
   .hn-thao { min-width: 92px; }
   .hn-thao a { display: block; font-size: 13px; margin-bottom: 4px; cursor: pointer; white-space: nowrap; }
-  .hn-dem { font-size: 11px; color: var(--muted); }
+  .hn-dem { font-size: 12px; color: var(--muted); }
   .hn-dem.vuot { color: var(--bad); font-weight: 700; }
   .hn-form label { display: block; font-size: 13px; color: var(--muted); margin: 10px 0 4px; }
   .hn-form input[type=text], .hn-form textarea, .hn-form select { width: 100%; border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font: inherit; }
@@ -135,7 +135,7 @@
   .anh-o { position: relative; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: #f4f6f8; cursor: pointer; }
   .anh-o img { display: block; width: 100%; aspect-ratio: 1 / 1; object-fit: cover; }
   .anh-o .video { display: flex; align-items: center; justify-content: center; aspect-ratio: 1 / 1; font-size: 30px; color: var(--brand); }
-  .anh-o .ten { font-size: 11px; padding: 3px 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; background: var(--card); }
+  .anh-o .ten { font-size: 12px; padding: 3px 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; background: var(--card); }
   .anh-o .nhan { position: absolute; top: 4px; left: 4px; }
   #anhXem { position: fixed; inset: 0; background: rgba(10, 20, 30, .88); z-index: 50; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 16px; }
   #anhXem img { max-width: 100%; max-height: calc(100% - 70px); border-radius: 8px; background: #fff; }
@@ -177,6 +177,12 @@
     .hide-m { display: none; }
     th, td { padding: 6px 5px; }
   }
+  /* 07/11/2026: chuẩn UI chung (frontend-design + UI/UX Pro Max): viền focus bàn phím cho mọi nút/ô, giảm chuyển động. */
+  :focus-visible { outline: 3px solid var(--brand-2); outline-offset: 2px; border-radius: 4px; }
+  header :focus-visible { outline-color: #f2b632; }
+  button:active:not(:disabled) { transform: translateY(1px); }
+  td, .stat .n { font-variant-numeric: tabular-nums; }
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
 </style>
 </head>
 <body>
