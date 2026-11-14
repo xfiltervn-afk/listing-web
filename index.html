@@ -309,6 +309,7 @@ function xemAnh(ds, i, quay) {
   const di = d => { const k = i + d; if (k >= 0 && k < ds.length) { document.removeEventListener('keydown', phim, true); xemAnh(ds, k, quay); } };
   function phim(e) {
     if (!document.body.contains(o)) { document.removeEventListener('keydown', phim, true); return; }
+    if (e.isComposing || e.keyCode === 229) return;   // bộ gõ tiếng Việt đang ghép chữ (học từ meta/astryx 14/11)
     if (e.key === 'Escape') { e.stopImmediatePropagation(); e.preventDefault(); dong(); }   // chỉ đóng lớp xem ảnh, giữ khung listing
     else if (e.key === 'ArrowLeft') di(-1);
     else if (e.key === 'ArrowRight') di(1);
@@ -580,7 +581,7 @@ function openPanel(title, html) { $('pT').textContent = title; $('pB').innerHTML
 function closePanel() { $('ov').classList.add('hidden'); }
 $('pClose').onclick = closePanel;
 $('ov').onclick = e => { if (e.target === $('ov')) closePanel(); };
-document.addEventListener('keydown', e => { if (e.key === 'Escape') closePanel(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && !e.isComposing && e.keyCode !== 229) closePanel(); });   // không đóng khung khi bộ gõ đang ghép chữ
 
 async function openSku(sku) {
   const s = D.SKU.find(x => x['SKU chuẩn'] === sku) || {};
