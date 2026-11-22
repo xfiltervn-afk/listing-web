@@ -812,7 +812,7 @@ async function vSku() {
     subs = [['mth', 'Tổng hợp (' + SK.mlkk.length + ' SKU)'], ['mf', 'Theo file kinh doanh (' + SK.mlkkFile.length + ' dòng)'],
             ['mck', 'Cần kiểm tra (' + can.length + ' dòng' + (choChon ? ', ' + choChon + ' chờ anh chọn' : '') + ')']];
     cols = { mth: ['SKU chuẩn', 'Cần kiểm tra', 'Loại lọc', 'Thương hiệu', 'Model máy tương thích', 'Kích thước', 'Giá về kho', 'Giá bán (file)', 'Giá Shopee thấp nhất', 'Số listing Shopee', 'Shop đang bán'],
-             mf: ['STT gốc', 'SKU chuẩn', 'Cần kiểm tra', 'Thương hiệu', 'Model máy', 'Loại màng', 'Kích thước', 'Giá về kho', 'Giá bán (file)', 'Cách ghép', 'Ứng viên', 'Listing theo link file', 'Listing bằng chứng'],
+             mf: ['STT gốc', 'SKU chuẩn', 'Cần kiểm tra', 'Thương hiệu', 'Model máy', 'Loại màng', 'Kích thước', 'Giá nhập (tệ)', 'Giá nhập (VND)', 'Giá về kho', 'Giá bán (file)', 'Cách ghép', 'Ứng viên', 'Listing theo link file', 'Listing bằng chứng'],
              mck: ['_loai', 'STT gốc', 'SKU chuẩn', 'Cần kiểm tra', 'Ứng viên', 'Thương hiệu', 'Model máy', 'Cách ghép'] }[SK.sub.MLKK];
     src = { mth: SK.mlkk, mf: SK.mlkkFile, mck: can }[SK.sub.MLKK];
     const m = SK.data.mlkkMeta || {}, kd = m.nguon_kd || {};
