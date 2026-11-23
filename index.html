@@ -6,7 +6,7 @@
 <title>Master Listing</title>
 <meta name="description" content="XFILTER – tra cứu SKU và listing nội bộ">
 <meta name="robots" content="noindex, nofollow">
-<meta name="theme-color" content="#12355b">
+<meta name="theme-color" content="#641c34">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Listing">
@@ -46,9 +46,11 @@
 
 <style>
   :root {
-    --brand: #12355b; --brand-2: #1f5a8f; --bg: #eef2f6; --card: #fff; --ink: #1b2430; --muted: #66707c;
-    --line: #dde3ea; --ok: #1e7f4f; --ok-bg: #e3f4ea; --warn: #8a5a00; --warn-bg: #fff3d6; --bad: #a12a2a; --bad-bg: #fde8e8;
-    --chip: #eef3f9;
+    /* 23/11/2026 (anh Trung): kiểu chung các web nội bộ (skill giao_dien_xfilter) — nền xám trung tính, đỏ rượu Xfilter làm điểm nhấn.
+       Bản trước: --brand #12355b, --brand-2 #1f5a8f, --bg #eef2f6 (sao lưu .work/claude_ui_2311). */
+    --brand: #641c34; --brand-2: #842d49; --bg: #fafafa; --card: #fff; --ink: #171717; --muted: #737373; --ink-2: #525252;
+    --line: #e7e7e9; --ok: #15803d; --ok-bg: #ecf7ef; --warn: #b45309; --warn-bg: #fdf3e7; --bad: #c8291f; --bad-bg: #fdeceb;
+    --chip: #f4f4f5;
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
@@ -183,13 +185,50 @@
   button:active:not(:disabled) { transform: translateY(1px); }
   td, .stat .n { font-variant-numeric: tabular-nums; }
   @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+  /* Giao diện mới 23/11/2026: chữ bớt đậm, không vàng / xanh làm điểm nhấn, nhãn chữ thường. Chỉ CSS, không đổi id / class JS dùng. */
+  html, body { font-size: 15px; }
+  .top b { letter-spacing: 0; font-size: 16px; font-weight: 600; }
+  .top button { background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.18); transition: background-color .15s; }
+  .top button:hover { background: rgba(255,255,255,.18); }
+  nav button { color: rgba(255,255,255,.72); transition: color .15s, border-color .15s; }
+  nav button:hover { color: #fff; }
+  nav button.on { border-bottom-color: #fff; font-weight: 500; }
+  .badge { background: rgba(255,255,255,.92); color: var(--brand); font-weight: 600; }
+  header :focus-visible { outline-color: #fff; }
+  .card, .stat { border-color: var(--line); }
+  h2 { font-weight: 500; font-size: 18px; } h3 { font-weight: 500; }
+  .stat .n { font-weight: 600; letter-spacing: -.01em; }
+  .stat .l, th { color: var(--ink-2); }
+  .stat.click:hover { border-color: #a1a1aa; }
+  th { font-weight: 500; font-size: 12.5px; }
+  .hn-tbl th { background: var(--chip); color: var(--ink-2); font-weight: 500; }
+  .hn-tbl tr:hover td, .item:hover { background: #f8f8f9; }
+  .btn { border-color: var(--brand-2); background: var(--brand-2); font-weight: 500; transition: background-color .15s, border-color .15s; }
+  .btn:hover:not(:disabled) { background: var(--brand); border-color: var(--brand); }
+  .btn.ghost { background: #fff; color: var(--ink); border-color: #d4d4d8; }
+  .btn.ghost:hover:not(:disabled) { background: var(--chip); color: var(--ink); border-color: #a1a1aa; }
+  input[type=text], input[type=password], input[type=search], input[type=date], select, textarea { border-color: #d4d4d8; }
+  .chip { border-color: var(--line); background: #fff; color: var(--ink-2); transition: background-color .15s, border-color .15s; }
+  .chip:hover { border-color: #a1a1aa; }
+  .chip.on { background: var(--ink); border-color: var(--ink); color: #fff; }
+  .tag { font-weight: 500; }
+  .tag.info { background: var(--chip); color: var(--ink-2); }
+  .hn-tabs a.on { color: var(--brand); border-bottom-color: var(--brand); font-weight: 500; }
+  .hn-dem.vuot, .anh-nhom, .sku, .panel .ph .t, .q .qt { font-weight: 600; }
+  .q.todo { border-left-color: var(--warn); }
+  .anh-o, .hn-sp img { background: var(--chip); }
+  .anh-o .video { color: var(--ink-2); }
+  .login { background: var(--bg); }
+  .login .box { border: 1px solid var(--line); border-radius: 12px; }
+  .toast { background: #171717; }
+  a { color: var(--brand-2); text-underline-offset: 2px; }
 </style>
 </head>
 <body>
 
 <div id="login" class="login hidden">
   <div class="box">
-    <div style="font-weight:800;letter-spacing:.12em;color:var(--brand)">MASTER LISTING</div>
+    <div style="font-weight:600;font-size:20px;color:var(--brand)">Master Listing</div>
     <div class="muted" style="margin-bottom:14px">XFILTER · SKU và listing đa kênh</div>
     <input id="ten" type="text" placeholder="Tên đăng nhập" autocomplete="username">
     <div id="loginNew" class="hidden">
@@ -209,7 +248,7 @@
 <div id="app" class="hidden">
   <header>
     <div class="top">
-      <b>MASTER LISTING</b><span id="vaiTroTag" class="tag warn hidden" style="margin-left:8px"></span><span class="sp"></span>
+      <b>Master Listing</b><span id="vaiTroTag" class="tag warn hidden" style="margin-left:8px"></span><span class="sp"></span>
       <button id="reloadBtn" title="Đọc lại dữ liệu từ máy chủ Master Listing">↻ Tải lại</button>
       <button id="pwBtn">Đổi mật khẩu</button>
       <button id="outBtn">Thoát</button>
@@ -470,7 +509,7 @@ function vTongQuan() {
       ${Object.keys(D.hopNhapDem || {}).length ? `<div class="stat click" data-go="hn"><div class="n">${fmt((D.hopNhapDem || {}).nhap || 0)}</div><div class="l">Bài web trong Hộp nháp · ${fmt((D.hopNhapDem || {}).cho_dang || 0)} chờ đăng</div></div>` : ''}
       ${D.PHEU.length ? `<div class="stat click" data-go="pheu"><div class="n">${fmt(D.PHEU.length)}</div><div class="l">Họ hàng trong Phễu Triển Khai · ${fmt(D.PHEU.filter(x => pheuBuoc(x) === 5).length)} chờ anh duyệt</div></div>` : ''}
       ${D.LKX_T.length ? `<div class="stat click" data-go="lkx"><div class="n">${fmt(D.LKX_T.length)}</div><div class="l">Trang web Lọc Khí Xanh · ${fmt(D.LKX_B.filter(b => !b['SKU chuẩn']).length)} biến thể chưa ghép SKU</div></div>` : ''}
-      <div class="stat click" data-go="cho" style="${p.all ? 'border-color:#f2b632' : ''}"><div class="n">${fmt(p.all)}</div><div class="l">Câu hỏi / việc chưa xong</div></div>
+      <div class="stat click" data-go="cho" style="${p.all ? 'border-color:var(--warn)' : ''}"><div class="n">${fmt(p.all)}</div><div class="l">Câu hỏi / việc chưa xong</div></div>
     </div>
     <div class="card"><h2>Theo shop Shopee</h2><div class="scroll"><table>
       <tr><th>Shop</th><th class="num">Listing</th><th class="num">Phân loại</th><th class="num hide-m">Tổng tồn</th><th class="num">Chưa rà</th></tr>
